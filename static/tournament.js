@@ -1,0 +1,333 @@
+document.addEventListener('DOMContentLoaded', () => {
+    const tabMatches = document.getElementById('tab-btn-matches');
+    const tabStandings = document.getElementById('tab-btn-standings');
+    const viewMatches = document.getElementById('view-matches');
+    const viewStandings = document.getElementById('view-standings');
+
+    if (tabMatches && tabStandings && viewMatches && viewStandings) {
+        tabMatches.addEventListener('click', () => {
+            tabMatches.classList.add('active');
+            tabStandings.classList.remove('active');
+            viewMatches.classList.remove('hidden-view');
+            viewStandings.classList.add('hidden-view');
+        });
+
+        tabStandings.addEventListener('click', () => {
+            tabStandings.classList.add('active');
+            tabMatches.classList.remove('active');
+            viewStandings.classList.remove('hidden-view');
+            viewMatches.classList.add('hidden-view');
+        });
+    }
+
+    // Modal Open/Close Controls
+    const openBtn = document.getElementById('open-entries-modal-btn');
+    const closeBtn = document.getElementById('close-entries-modal-btn');
+    const modal = document.getElementById('entries-modal');
+
+    if (modal) {
+        if (openBtn) {
+            openBtn.addEventListener('click', () => {
+                modal.style.display = 'flex';
+            });
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+        }
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+
+    // Matches & Fixtures Sub-tabs Filter Logic
+    const filterBar = document.getElementById('matches-filter-bar');
+    const matchCards = document.querySelectorAll('.match-card');
+
+    if (filterBar && matchCards.length > 0) {
+        const categoriesMap = new Map();
+        
+        function getCategoryInfo(stage, group) {
+            if (stage === 'group' && group) {
+                return { id: `group-${group}`, label: `Group ${group}` };
+            }
+            if (stage === 'league') {
+                return { id: 'league', label: 'League Matches' };
+            }
+            if (stage === 'quarter') {
+                return { id: 'quarter', label: 'Quarter-finals' };
+            }
+            if (stage === 'semi') {
+                return { id: 'semi', label: 'Semi-finals' };
+            }
+            if (stage === 'final') {
+                return { id: 'final', label: 'Finals' };
+            }
+            return { id: stage, label: stage.charAt(0).toUpperCase() + stage.slice(1) };
+        }
+
+        matchCards.forEach(card => {
+            const stage = card.getAttribute('data-stage');
+            const group = card.getAttribute('data-group');
+            const cat = getCategoryInfo(stage, group);
+            
+            if (!categoriesMap.has(cat.id)) {
+                categoriesMap.set(cat.id, cat.label);
+            }
+            card.setAttribute('data-cat-id', cat.id);
+        });
+
+        if (categoriesMap.size > 0) {
+            const catOrder = ['group-A', 'group-B', 'group-C', 'group-D', 'league', 'quarter', 'semi', 'final'];
+            const sortedKeys = Array.from(categoriesMap.keys()).sort((a, b) => {
+                const specificIdxA = catOrder.indexOf(a);
+                const specificIdxB = catOrder.indexOf(b);
+                
+                if (specificIdxA !== -1 && specificIdxB !== -1) {
+                    return specificIdxA - specificIdxB;
+                }
+                if (a.startsWith('group-') && b.startsWith('group-')) {
+                    return a.localeCompare(b);
+                }
+                const valA = specificIdxA !== -1 ? specificIdxA : 99;
+                const valB = specificIdxB !== -1 ? specificIdxB : 99;
+                return valA - valB;
+            });
+
+            sortedKeys.forEach(catId => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'sub-tab-btn';
+                btn.setAttribute('data-cat-id', catId);
+                btn.textContent = categoriesMap.get(catId);
+                btn.addEventListener('click', () => {
+                    filterBar.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    let visibleIdx = 1;
+                    matchCards.forEach(card => {
+                        if (card.getAttribute('data-cat-id') === catId) {
+                            card.style.display = '';
+                            const snoSpan = card.querySelector('.sno-val');
+                            if (snoSpan) {
+                                snoSpan.textContent = visibleIdx++;
+                            }
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+
+                    // Save selected sub-tab in localStorage
+                    const tourneyId = window.location.pathname.split('/').filter(Boolean).pop();
+                    if (tourneyId) {
+                        localStorage.setItem(`active_sub_tab_${tourneyId}`, catId);
+                    }
+                });
+                filterBar.appendChild(btn);
+            });
+
+            // Activate saved sub-tab or default to the first one
+            const tourneyId = window.location.pathname.split('/').filter(Boolean).pop();
+            const savedCatId = tourneyId ? localStorage.getItem(`active_sub_tab_${tourneyId}`) : null;
+            let activeBtn = null;
+            
+            if (savedCatId) {
+                activeBtn = filterBar.querySelector(`.sub-tab-btn[data-cat-id="${savedCatId}"]`);
+            }
+            
+            if (!activeBtn) {
+                activeBtn = filterBar.querySelector('.sub-tab-btn');
+            }
+            
+            if (activeBtn) {
+                activeBtn.click();
+            }
+        }
+    }
+
+    // Score Feed Modal Control Logic
+    const scoreModal = document.getElementById('score-modal');
+    if (scoreModal) {
+        const closeBtn = document.getElementById('close-score-modal-btn');
+        const titleEl = document.getElementById('score-modal-title');
+        const matchIdInput = document.getElementById('score-modal-match-id');
+        const setNumInput = document.getElementById('score-modal-set-num');
+        const currentSetSpan = document.getElementById('score-modal-current-set');
+        const setsCountEl = document.getElementById('score-modal-sets-count');
+        const numSetsInput = document.getElementById('score-modal-num-sets');
+        const team1NameEl = document.getElementById('score-modal-team1-name');
+        const team2NameEl = document.getElementById('score-modal-team2-name');
+        const score1Input = document.getElementById('score-modal-score1');
+        const score2Input = document.getElementById('score-modal-score2');
+        const prevSetBtn = document.getElementById('score-modal-prev-set');
+        const nextSetBtn = document.getElementById('score-modal-next-set');
+        const decSetsBtn = document.getElementById('score-modal-dec-sets');
+        const incSetsBtn = document.getElementById('score-modal-inc-sets');
+        const randomBtn = document.getElementById('score-modal-random-btn');
+        const deleteBtn = document.getElementById('score-modal-delete-btn');
+
+        let activeMatchScores = [];
+        let activeSetNum = 1;
+        let totalSets = 3;
+        let winningPoint = 21;
+
+        function updateModalSetView() {
+            setNumInput.value = activeSetNum;
+            currentSetSpan.textContent = activeSetNum;
+            setsCountEl.textContent = totalSets;
+            numSetsInput.value = totalSets;
+
+            // Load scores for the active set
+            const scoreObj = activeMatchScores[activeSetNum - 1] || { team1: null, team2: null };
+            score1Input.value = scoreObj.team1 !== null ? scoreObj.team1 : '';
+            score2Input.value = scoreObj.team2 !== null ? scoreObj.team2 : '';
+
+            // Disable/enable prev/next buttons
+            prevSetBtn.disabled = activeSetNum <= 1;
+            nextSetBtn.disabled = activeSetNum >= totalSets;
+            
+            // Style disabled navigation states to look appropriate
+            prevSetBtn.style.opacity = activeSetNum <= 1 ? '0.3' : '1';
+            prevSetBtn.style.cursor = activeSetNum <= 1 ? 'not-allowed' : 'pointer';
+            nextSetBtn.style.opacity = activeSetNum >= totalSets ? '0.3' : '1';
+            nextSetBtn.style.cursor = activeSetNum >= totalSets ? 'not-allowed' : 'pointer';
+
+            // Disable/enable dec/inc sets count buttons
+            decSetsBtn.disabled = totalSets <= 1;
+            decSetsBtn.style.opacity = totalSets <= 1 ? '0.3' : '1';
+            decSetsBtn.style.cursor = totalSets <= 1 ? 'not-allowed' : 'pointer';
+
+            incSetsBtn.disabled = totalSets >= 5;
+            incSetsBtn.style.opacity = totalSets >= 5 ? '0.3' : '1';
+            incSetsBtn.style.cursor = totalSets >= 5 ? 'not-allowed' : 'pointer';
+        }
+
+        document.querySelectorAll('.scores-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+                const tr = cell.closest('.match-card');
+                if (!tr) return;
+
+                const matchId = tr.getAttribute('data-match-id');
+                const team1 = tr.getAttribute('data-team1');
+                const team2 = tr.getAttribute('data-team2');
+                totalSets = parseInt(tr.getAttribute('data-num-sets')) || 3;
+                winningPoint = parseInt(tr.getAttribute('data-winning-point')) || 21;
+                const stageFull = tr.getAttribute('data-stage-full');
+                const sno = tr.querySelector('.sno-val')?.textContent || '1';
+
+                try {
+                    activeMatchScores = JSON.parse(tr.getAttribute('data-scores') || '[]');
+                } catch (e) {
+                    activeMatchScores = [];
+                }
+
+                // Initialize scores array if empty/incorrect size
+                while (activeMatchScores.length < totalSets) {
+                    activeMatchScores.push({ team1: null, team2: null });
+                }
+
+                // Populate Modal Data
+                titleEl.textContent = `${stageFull} - Match ${sno}`;
+                matchIdInput.value = matchId;
+                team1NameEl.textContent = team1.toUpperCase();
+                team2NameEl.textContent = team2.toUpperCase();
+
+                activeSetNum = 1;
+                updateModalSetView();
+
+                // Show Modal
+                scoreModal.style.display = 'flex';
+            });
+        });
+
+        // Close Modal
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                scoreModal.style.display = 'none';
+            });
+        }
+        scoreModal.addEventListener('click', (e) => {
+            if (e.target === scoreModal) {
+                scoreModal.style.display = 'none';
+            }
+        });
+
+        // Sets Count Decrement/Increment
+        if (decSetsBtn) {
+            decSetsBtn.addEventListener('click', () => {
+                if (totalSets === 5) {
+                    totalSets = 3;
+                } else if (totalSets === 3) {
+                    totalSets = 1;
+                }
+                if (activeSetNum > totalSets) {
+                    activeSetNum = totalSets;
+                }
+                while (activeMatchScores.length > totalSets) {
+                    activeMatchScores.pop();
+                }
+                updateModalSetView();
+            });
+        }
+
+        if (incSetsBtn) {
+            incSetsBtn.addEventListener('click', () => {
+                if (totalSets === 1) {
+                    totalSets = 3;
+                } else if (totalSets === 3) {
+                    totalSets = 5;
+                }
+                while (activeMatchScores.length < totalSets) {
+                    activeMatchScores.push({ team1: null, team2: null });
+                }
+                updateModalSetView();
+            });
+        }
+
+        // Prev/Next Set Controls
+        if (prevSetBtn && nextSetBtn) {
+            prevSetBtn.addEventListener('click', () => {
+                if (activeSetNum > 1) {
+                    activeSetNum--;
+                    updateModalSetView();
+                }
+            });
+            nextSetBtn.addEventListener('click', () => {
+                if (activeSetNum < totalSets) {
+                    activeSetNum++;
+                    updateModalSetView();
+                }
+            });
+        }
+
+        // Random generator
+        if (randomBtn) {
+            randomBtn.addEventListener('click', () => {
+                const winner = Math.random() < 0.5 ? 1 : 2;
+                const winScore = winningPoint;
+                const loseScore = Math.floor(Math.random() * (winningPoint - 1));
+                if (winner === 1) {
+                    score1Input.value = winScore;
+                    score2Input.value = loseScore;
+                } else {
+                    score1Input.value = loseScore;
+                    score2Input.value = winScore;
+                }
+            });
+        }
+
+        // Delete button clears the inputs and submits
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                score1Input.value = '';
+                score2Input.value = '';
+                document.getElementById('score-modal-form').submit();
+            });
+        }
+    }
+});

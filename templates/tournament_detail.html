@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmashHard - Tournament Details.">
+    <!-- Strict Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:; frame-ancestors 'none';">
+    <title>SmashHard - {{ tournament.name }}</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=1.0.6">
+</head>
+<body>
+    <!-- Decorative Premium Glow Effects -->
+    <div class="glow-bg-container" aria-hidden="true">
+        <div class="glow-blob blob-primary"></div>
+        <div class="glow-blob blob-secondary"></div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="portal-container" style="max-width: 900px; width: 95%;">
+        <!-- Header -->
+        <header class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div>
+                <a href="/dashboard" class="switch-link" style="font-size: 13px;">← Back to Tournaments</a>
+                <h1 style="font-size: 28px; font-weight: 600; margin-top: 6px;">{{ tournament.name }}</h1>
+                <p class="subtitle" style="font-size: 13px; margin-top: 2px;">
+                    Model: <strong style="text-transform: capitalize;">{{ tournament.fixture_type.replace('_', ' + ') if tournament.fixture_type else 'Not Selected (TBD)' }}</strong> | 
+                    Status: <strong style="text-transform: capitalize;">{{ tournament.status }}</strong>
+                </p>
+            </div>
+            
+            <div style="text-align: right;">
+                {% if username == 'admin' %}
+                <span class="badge badge-success">Admin (Edit Access)</span>
+                {% elif is_creator %}
+                <span class="badge badge-success">Organizer (Edit Access)</span>
+                {% else %}
+                <span class="badge badge-info">Spectator (Read-Only)</span>
+                {% endif %}
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Created by: {{ tournament.creator }}</p>
+            </div>
+        </header>
+
+        <!-- Server Flash Messages -->
+        {% if error %}
+        <div class="alert-box alert-error" role="alert" style="margin-bottom: 20px;">
+            <span class="alert-icon">✗</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+        {% if success %}
+        <div class="alert-box alert-success" role="alert" style="margin-bottom: 20px;">
+            <span class="alert-icon">✓</span>
+            <span>{{ success }}</span>
+        </div>
+        {% endif %}
+
+        {% if not tournament.matches %}
+        <!-- VIEW: REGISTRATION PORTAL -->
+        <section class="card-section">
+            {% if tournament.open_registration %}
+            <h2 style="font-size: 20px; color: var(--primary); margin-bottom: 8px;">Tournament Registration Open</h2>
+            <p class="subtitle" style="font-size: 13px; margin-bottom: 20px;">
+                Entries close on: <strong style="color: var(--secondary);">{{ tournament.entry_deadline }}</strong>
+            </p>
+            {% else %}
+            <h2 style="font-size: 20px; color: var(--primary); margin-bottom: 8px;">Tournament Registration Invite-Only</h2>
+            <p class="subtitle" style="font-size: 13px; margin-bottom: 20px;">
+                Public entry is disabled. Only the tournament organizer can add teams manually.
+            </p>
+            {% endif %}
+
+            <!-- Registration Status Details -->
+            <div style="margin-bottom: 24px; display: flex; justify-content: center;">
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: nowrap; min-width: 200px;">
+                    <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap;">Registered Teams:</span>
+                    <span style="font-size: 20px; font-weight: 700; color: var(--primary); white-space: nowrap;">{{ tournament.teams | length }}</span>
+                </div>
+            </div>
+
+            <!-- Collapsed Entries View Trigger -->
+            {% if is_creator %}
+            <div style="margin-bottom: 24px; text-align: center;">
+                <button type="button" class="btn btn-secondary" id="open-entries-modal-btn" style="display: inline-flex; width: auto; padding: 10px 20px; font-size: 14px; border-radius: 10px; gap: 8px; margin: 0 auto;">
+                    <span>👥 View Entries ({{ tournament.teams | length }})</span>
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- Registration Action / Form -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 20px; text-align: center;">
+                {% if is_creator %}
+                    <!-- Admin Manual Team Insertion -->
+                    <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text-main);">Add Team Manually</h3>
+                    <form action="/tournament/{{ tournament.id }}/register_team" method="POST" style="max-width: 320px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="input-wrapper">
+                            <input type="text" name="team_name" placeholder="e.g. Team Dragon" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth);">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="padding: 12px;">
+                            <span>Add Team</span>
+                        </button>
+                    </form>
+                {% else %}
+                    {% if not tournament.open_registration %}
+                        <div style="padding: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 12px; text-align: center;">
+                            <p style="font-size: 14px; color: var(--text-muted); font-weight: 600; margin: 0;">Public registration is disabled / Invite-only.</p>
+                        </div>
+                    {% elif not registration_closed %}
+                        {% set is_registered = false %}
+                        {% if username in tournament.get('registered_by', {}).values() %}
+                            {% set is_registered = true %}
+                        {% endif %}
+                        
+                        {% if is_registered %}
+                            <p style="font-size: 14px; color: var(--success); font-weight: 600;">✓ You have already registered a team in this tournament!</p>
+                        {% else %}
+                            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text-main);">Register Your Team</h3>
+                            <form action="/tournament/{{ tournament.id }}/register_team" method="POST" style="max-width: 320px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <div class="input-wrapper">
+                                    <input type="text" name="team_name" placeholder="e.g. Chong Wei / Lin Dan" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth);">
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="padding: 12px;">
+                                    <span>Register Team</span>
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% else %}
+                        <div style="padding: 16px; background: rgba(255, 75, 75, 0.04); border: 1px solid rgba(255, 75, 75, 0.15); border-radius: 12px; text-align: center;">
+                            <p style="font-size: 14px; color: var(--error); font-weight: 600; margin: 0;">Registration Closed (Deadline passed on {{ tournament.entry_deadline }})</p>
+                        </div>
+                    {% endif %}
+                {% endif %}
+
+                <!-- Creator Start Controls -->
+                {% if is_creator %}
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px dashed rgba(255,255,255,0.05);">
+                    <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--secondary);">Organizer Controls</h3>
+                    {% if tournament.teams | length >= 2 %}
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                            Select rules and configurations to close entry and generate fixtures for the {{ tournament.teams | length }} registered teams.
+                        </p>
+                        <form action="/tournament/{{ tournament.id }}/start" method="POST" style="max-width: 450px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            
+                            <div class="input-group" style="text-align: left; margin-bottom: 0;">
+                                <label for="fixture-type-detail" style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Select Fixture Mode</label>
+                                <div class="input-wrapper">
+                                    <select id="fixture-type-detail" name="fixture_type" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; font-family: inherit;">
+                                        <option value="leagues">Leagues (Round Robin)</option>
+                                        <option value="groups">Groups Stage</option>
+                                        <option value="groups_leagues">Groups + Knockout</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="input-group" style="text-align: left; margin-bottom: 0;">
+                                    <label for="tourney-winning-point" style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Winning Point</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="tourney-winning-point" name="winning_point" min="11" max="30" value="21" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth);">
+                                    </div>
+                                </div>
+                                <div class="input-group" style="text-align: left; margin-bottom: 0;">
+                                    <label for="tourney-num-sets" style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Number of Sets</label>
+                                    <div class="input-wrapper">
+                                        <select id="tourney-num-sets" name="num_sets" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth); font-family: inherit;">
+                                            <option value="1">1 (Single Set)</option>
+                                            <option value="3" selected>3 (Best of 3 Sets)</option>
+                                            <option value="5">5 (Best of 5 Sets)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="input-group" style="text-align: left; margin-bottom: 0;">
+                                    <label for="tourney-num-groups" style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Number of Groups</label>
+                                    <div class="input-wrapper">
+                                        <select id="tourney-num-groups" name="num_groups" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth); font-family: inherit;">
+                                            <option value="1">1 (Single League)</option>
+                                            <option value="2" selected>2 Groups</option>
+                                            <option value="4">4 Groups</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="input-group" style="text-align: left; margin-bottom: 0;">
+                                    <label for="tourney-teams-per-group" style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Teams per Group</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="tourney-teams-per-group" name="teams_per_group" min="2" max="16" value="4" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth);">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success" style="padding: 14px; width: 100%; margin-top: 10px;">
+                                <span>Close Entry & Push to Fixture</span>
+                            </button>
+                        </form>
+
+                        <script>
+                            document.addEventListener('DOMContentLoaded', () => {
+                                const fixtureTypeDetail = document.getElementById('fixture-type-detail');
+                                const numGroupsDetail = document.getElementById('tourney-num-groups');
+
+                                const updateFixtureOptionsDetail = () => {
+                                    if (numGroupsDetail.value === "1") {
+                                        fixtureTypeDetail.value = "leagues";
+                                        Array.from(fixtureTypeDetail.options).forEach(opt => {
+                                            if (opt.value !== "leagues") {
+                                                opt.disabled = true;
+                                            }
+                                        });
+                                    } else {
+                                        Array.from(fixtureTypeDetail.options).forEach(opt => {
+                                            opt.disabled = false;
+                                        });
+                                    }
+                                };
+
+                                if (numGroupsDetail && fixtureTypeDetail) {
+                                    numGroupsDetail.addEventListener('change', updateFixtureOptionsDetail);
+                                    updateFixtureOptionsDetail();
+                                }
+                            });
+                        </script>
+                    {% else %}
+                        <p style="font-size: 12px; color: var(--error);">* At least 2 teams must be registered to close entry and push to fixture.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% else %}
+        <!-- Tab Controls -->
+        <div class="tabs-wrapper" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 24px;">
+            <button type="button" class="tab-btn {% if request.args.get('active_tab') != 'matches' %}active{% endif %}" id="tab-btn-standings">Standings & Tables</button>
+            <button type="button" class="tab-btn {% if request.args.get('active_tab') == 'matches' %}active{% endif %}" id="tab-btn-matches">Matches & Results</button>
+        </div>
+
+        <!-- VIEW 1: STANDINGS -->
+        <section id="view-standings" class="tab-content-view {% if request.args.get('active_tab') == 'matches' %}hidden-view{% endif %}">
+            <!-- LEAGUE STANDINGS -->
+            {% if tournament.fixture_type == 'leagues' %}
+            <div class="card-section">
+                <h2 style="font-size: 18px; margin-bottom: 16px; color: var(--primary);">League Standings</h2>
+                <div style="overflow-x: auto;">
+                    <table class="standings-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th style="text-align: left;">Team / Player</th>
+                                <th>Played</th>
+                                <th>Won</th>
+                                <th>Lost</th>
+                                <th>Sets W-L</th>
+                                <th>Pts Diff</th>
+                                <th>Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in standings %}
+                            <tr>
+                                <td style="font-weight: 600; color: var(--primary);">{{ loop.index }}</td>
+                                <td style="text-align: left; font-weight: 500;">{{ row.team }}</td>
+                                <td>{{ row.played }}</td>
+                                <td>{{ row.won }}</td>
+                                <td>{{ row.lost }}</td>
+                                <td>{{ row.sets_won }}-{{ row.sets_lost }}</td>
+                                <td style="color: {% if row.point_diff >= 0 %}var(--secondary){% else %}var(--error){% endif %};">
+                                    {{ "%+d"|format(row.point_diff) if row.point_diff != 0 else "0" }}
+                                </td>
+                                <td style="font-weight: 600; color: var(--secondary);">{{ row.points }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- GROUPS OR GROUPS+LEAGUES STANDINGS -->
+            <!-- GROUPS OR GROUPS+LEAGUES STANDINGS -->
+            {% if tournament.fixture_type == 'groups' or tournament.fixture_type == 'groups_leagues' %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 24px;">
+                {% for group_name, standings_list in group_standings|dictsort %}
+                <div class="card-section" style="margin-bottom: 0;">
+                    <h2 style="font-size: 18px; margin-bottom: 16px; color: var(--primary);">Group {{ group_name }} Standings</h2>
+                    <div style="overflow-x: auto;">
+                        <table class="standings-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th style="text-align: left;">Team / Player</th>
+                                    <th>P</th>
+                                    <th>W</th>
+                                    <th>L</th>
+                                    <th>Sets</th>
+                                    <th>Pts Diff</th>
+                                    <th>Pts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in standings_list %}
+                                <tr>
+                                    <td style="font-weight: 600; color: var(--primary);">{{ loop.index }}</td>
+                                    <td style="text-align: left; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="{{ row.team }}">{{ row.team }}</td>
+                                    <td>{{ row.played }}</td>
+                                    <td>{{ row.won }}</td>
+                                    <td>{{ row.lost }}</td>
+                                    <td>{{ row.sets_won }}-{{ row.sets_lost }}</td>
+                                    <td style="color: {% if row.point_diff >= 0 %}var(--secondary){% else %}var(--error){% endif %};">
+                                        {{ "%+d"|format(row.point_diff) if row.point_diff != 0 else "0" }}
+                                    </td>
+                                    <td style="font-weight: 600; color: var(--secondary);">{{ row.points }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Groups + Leagues Knockout Stage Panel -->
+            {% if tournament.fixture_type == 'groups_leagues' %}
+            <div class="card-section">
+                <h2 style="font-size: 18px; margin-bottom: 16px; color: var(--primary);">Knockout Stage (Bracket)</h2>
+                
+                {% if not knockout_generated %}
+                    {% if is_creator %}
+                        <div style="text-align: center; padding: 24px;">
+                            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+                                Once all Group Stage matches are completed, the top 2 teams/players from Group A and Group B will qualify for the Semi-finals.
+                            </p>
+                            <form action="/tournament/{{ tournament.id }}/knockout" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-primary" style="max-width: 250px; margin: 0 auto;" {% if not group_stage_done %}disabled title="Complete all group matches first"{% endif %}>
+                                    <span>Generate Knockouts</span>
+                                </button>
+                            </form>
+                            {% if not group_stage_done %}
+                            <p style="font-size: 11px; color: var(--error); margin-top: 8px;">* Group stage matches are still in progress.</p>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <p style="text-align: center; color: var(--text-muted); font-size: 14px; padding: 20px;">
+                            Knockout brackets will be generated by the organizer once the group stage completes.
+                        </p>
+                    {% endif %}
+                {% else %}
+                    <!-- Display Knockout Brackets -->
+                    {% set has_quarters = tournament.matches | selectattr("stage", "equalto", "quarter") | list | length > 0 %}
+                    <div class="knockout-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax({% if has_quarters %}240px{% else %}280px{% endif %}, 1fr)); gap: 20px;">
+                        {% if has_quarters %}
+                        <div>
+                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Quarter-finals</h3>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                {% for m in tournament.matches if m.stage == 'quarter' %}
+                                <div class="match-bracket-card" style="padding: 12px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); border-radius: 12px;">
+                                    <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px;">Quarter-final {{ loop.index }}</div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 500;">
+                                        <span>{{ m.team1 }}</span>
+                                        <span style="color: var(--secondary);">{{ m.score1 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 500; margin-top: 4px;">
+                                        <span>{{ m.team2 }}</span>
+                                        <span style="color: var(--secondary);">{{ m.score2 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div>
+                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Semi-finals</h3>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                {% for m in tournament.matches if m.stage == 'semi' %}
+                                <div class="match-bracket-card" style="padding: 12px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); border-radius: 12px;">
+                                    <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px;">Semi-final {{ loop.index }}</div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 500;">
+                                        <span>{{ m.team1 }}</span>
+                                        <span style="color: var(--secondary);">{{ m.score1 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 500; margin-top: 4px;">
+                                        <span>{{ m.team2 }}</span>
+                                        <span style="color: var(--secondary);">{{ m.score2 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Finals</h3>
+                            <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+                                {% for m in tournament.matches if m.stage == 'final' %}
+                                <div class="match-bracket-card" style="padding: 16px; border: 2px solid var(--primary); background: rgba(0, 240, 255, 0.03); border-radius: 12px; box-shadow: 0 0 15px var(--primary-glow);">
+                                    <div style="font-size: 11px; color: var(--secondary); font-weight: 600; margin-bottom: 6px;">Gold Medal Match</div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 600;">
+                                        <span>{{ m.team1 }}</span>
+                                        <span style="color: var(--primary);">{{ m.score1 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 600; margin-top: 4px;">
+                                        <span>{{ m.team2 }}</span>
+                                        <span style="color: var(--primary);">{{ m.score2 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                    {% if m.status == 'completed' %}
+                                    <div style="text-align: center; color: var(--success); font-size: 13px; font-weight: 700; margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                                        🏆 Champion: {% if m.score1 > m.score2 %}{{ m.team1 }}{% else %}{{ m.team2 }}{% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+        </section>
+
+        <!-- VIEW 2: MATCHES -->
+        <section id="view-matches" class="tab-content-view {% if request.args.get('active_tab') != 'matches' %}hidden-view{% endif %}">
+            <div class="card-section">
+
+                <!-- Sub-tabs filter bar populated by tournament.js -->
+                <div id="matches-filter-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.05);"></div>
+
+                <div style="overflow-x: auto;">
+                    <table class="standings-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left; width: 45px; padding-left: 12px;">S.No</th>
+                                <th style="text-align: left;">Teams</th>
+                                <th style="text-align: center;">Set Scores</th>
+                            </tr>
+                        </thead>
+                        <tbody class="matches-list">
+                            {% for m in tournament.matches %}
+                            <tr class="match-card" 
+                                data-match-id="{{ m.id }}" 
+                                data-team1="{{ m.team1 }}" 
+                                data-team2="{{ m.team2 }}" 
+                                data-num-sets="{{ tournament.num_sets or 3 }}" 
+                                data-winning-point="{{ tournament.winning_point or 21 }}"
+                                data-scores='{{ m.scores | tojson }}'
+                                data-stage="{{ m.stage }}" 
+                                data-group="{{ m.group or '' }}" 
+                                data-status="{% if m.status == 'completed' %}Completed{% else %}Scheduled{% endif %}" 
+                                data-stage-full="{% if m.stage == 'quarter' %}Quarter-final{% elif m.stage == 'semi' %}Semi-final{% elif m.stage == 'final' %}Final{% else %}{% if m.group %}Group {{ m.group }} | {% endif %}Round {{ m.round }}{% endif %}">
+                                <!-- S.No -->
+                                <td class="match-index" style="text-align: left; font-weight: 500; color: var(--text-muted); font-size: 13px; white-space: nowrap; vertical-align: middle; padding-left: 12px;">
+                                    <span class="sno-val">{{ loop.index }}</span>
+                                    {% if is_creator %}
+                                    <input type="hidden" name="match_id" value="{{ m.id }}">
+                                    {% endif %}
+                                </td>
+                                
+                                <!-- Teams stacked vertically -->
+                                <td style="text-align: left; vertical-align: middle; white-space: nowrap; padding: 12px 10px;">
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <!-- Team 1 -->
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--primary);"></span>
+                                            <span class="{% if m.status == 'completed' and m.score1 > m.score2 %}winner-text{% endif %}" style="font-size: 15px; font-weight: 600; color: var(--text-main);" title="{{ m.team1 }}">{{ m.team1 }}</span>
+                                        </div>
+                                        <!-- Team 2 -->
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--secondary);"></span>
+                                            <span class="{% if m.status == 'completed' and m.score2 > m.score1 %}winner-text{% endif %}" style="font-size: 15px; font-weight: 600; color: var(--text-main);" title="{{ m.team2 }}">{{ m.team2 }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                
+                                <!-- Set Scores (Clickable for organizers) -->
+                                <td class="scores-cell" style="padding: 8px 12px; white-space: nowrap; text-align: center; vertical-align: middle; {% if is_creator %}cursor: pointer;{% endif %}" {% if is_creator %}title="Click to enter/modify scores"{% endif %}>
+                                    <div style="display: flex; gap: 8px; align-items: center; justify-content: center;">
+                                        {% if not m.scores or m.scores|length == 0 %}
+                                            <span class="badge badge-secondary" style="font-size: 10px; opacity: 0.7;">No result</span>
+                                        {% else %}
+                                            <div style="display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; padding: 4px 0;">
+                                                <!-- Team 1 Set Scores -->
+                                                <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                                    {% for set_num in range(1, (tournament.num_sets or 3) + 1) %}
+                                                    {% set set_idx = set_num - 1 %}
+                                                    {% set set_score = m.scores[set_idx] if (m.scores and m.scores|length > set_idx) else none %}
+                                                    <div style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 22px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 4px; font-size: 11px; font-weight: 700; color: {% if set_score and set_score.team1 is not none %}{% if set_score.team1 > set_score.team2 %}var(--primary){% else %}var(--text-muted){% endif %}{% else %}var(--text-muted){% endif %};" title="Set {{ set_num }} Score">
+                                                        {{ set_score.team1 if (set_score and set_score.team1 is not none) else '-' }}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                <!-- Team 2 Set Scores -->
+                                                <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                                    {% for set_num in range(1, (tournament.num_sets or 3) + 1) %}
+                                                    {% set set_idx = set_num - 1 %}
+                                                    {% set set_score = m.scores[set_idx] if (m.scores and m.scores|length > set_idx) else none %}
+                                                    <div style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 22px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 4px; font-size: 11px; font-weight: 700; color: {% if set_score and set_score.team2 is not none %}{% if set_score.team2 > set_score.team1 %}var(--primary){% else %}var(--text-muted){% endif %}{% else %}var(--text-muted){% endif %};" title="Set {{ set_num }} Score">
+                                                        {{ set_score.team2 if (set_score and set_score.team2 is not none) else '-' }}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                
+
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Entries Modal (Popup Window - Admin/Creator only) -->
+        {% if is_creator %}
+        <div id="entries-modal" class="modal-overlay" style="{% if request.args.get('show_entries') %}display: flex;{% else %}display: none;{% endif %}" role="dialog" aria-modal="true" aria-labelledby="entries-modal-title">
+            <div class="modal-dialog">
+                <header class="modal-header">
+                    <h3 id="entries-modal-title">Registered Teams List</h3>
+                    <button type="button" class="modal-close-btn" id="close-entries-modal-btn" aria-label="Close Modal">&times;</button>
+                </header>
+                <div class="modal-body" style="padding: 12px 16px;">
+                    <div style="overflow-x: auto;">
+                        <table class="entries-table" style="width: 100%; margin-top: 0; border: none;">
+                            <thead>
+                                <tr>
+                                    <th>Team / Player Name</th>
+                                    <th>Created By</th>
+                                    <th style="width: 90px; text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for team in tournament.teams %}
+                                <tr id="team-row-{{ loop.index0 }}">
+                                    <!-- View State -->
+                                    <td id="team-name-cell-{{ loop.index0 }}" style="font-weight: 500; font-size: 14px; word-break: break-all;">
+                                        {{ team }}
+                                    </td>
+                                    <td id="team-creator-cell-{{ loop.index0 }}" style="font-size: 13px; color: var(--text-muted);">
+                                        {% set reg_by = tournament.get('registered_by', {}).get(team) %}
+                                        {{ reg_by if reg_by else 'Unknown' }}
+                                    </td>
+                                    <td id="team-actions-cell-{{ loop.index0 }}" style="text-align: center; vertical-align: middle;">
+                                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                            <!-- Delete Button Form -->
+                                            <form action="/tournament/{{ tournament.id }}/remove_team" method="POST" style="margin: 0; display: inline;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                                <input type="hidden" name="team_name" value="{{ team }}">
+                                                <button type="submit" class="btn-table-icon-delete" title="Delete team">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;">
+                                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                
+                                {% if not tournament.teams %}
+                                <tr>
+                                    <td colspan="3" style="text-align: center; padding: 24px; color: var(--text-muted); border: none;">
+                                        No teams registered yet.
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Score Feed Modal (Admin/Creator only) -->
+        {% if is_creator %}
+        <div id="score-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="score-modal-title">
+            <div class="modal-dialog" style="max-width: 380px; background: #ffffff; border-radius: 28px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); border: none; padding: 24px; color: #000000;">
+                <header class="modal-header" style="border-bottom: none; padding: 0 0 16px 0; display: flex; justify-content: space-between; align-items: center; position: relative;">
+                    <h3 id="score-modal-title" style="font-size: 16px; font-weight: 700; color: #000000; text-align: center; width: 100%; letter-spacing: -0.2px; text-transform: uppercase; margin: 0;">ROUND 1 - MATCH 1</h3>
+                    <button type="button" class="modal-close-btn" id="close-score-modal-btn" aria-label="Close Modal" style="position: absolute; right: 0; top: -4px; background: none; border: none; color: #000000; font-size: 28px; cursor: pointer; transition: var(--transition-smooth); line-height: 1; opacity: 0.6; outline: none;">&times;</button>
+                </header>
+                <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; align-items: center;">
+                    <form id="score-modal-form" action="/tournament/{{ tournament.id }}/score" method="POST" style="width: 100%; display: flex; flex-direction: column; gap: 16px; margin: 0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="match_id" id="score-modal-match-id">
+                        <input type="hidden" name="set_num" id="score-modal-set-num" value="1">
+                        <input type="hidden" name="num_sets" id="score-modal-num-sets" value="3">
+
+                        <!-- Retro-Digital Scoreboard Dark Box -->
+                        <div class="score-modal-dark-container" style="background: #14141d; border-radius: 20px; padding: 20px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                            <div style="background: #000000; border: 1px solid #ff3333; padding: 4px 14px; border-radius: 6px; font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: 700; color: #ff3333; letter-spacing: 2px;">SETS</div>
+                            
+                            <!-- Sets Count Selector (- 3 +) -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button type="button" id="score-modal-dec-sets" style="width: 32px; height: 32px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; padding: 0;">-</button>
+                                <div id="score-modal-sets-count" style="width: 48px; height: 32px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center;">3</div>
+                                <button type="button" id="score-modal-inc-sets" style="width: 32px; height: 32px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; padding: 0;">+</button>
+                            </div>
+
+                            <!-- Set Navigation Selector (< 1 >) -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button type="button" id="score-modal-prev-set" style="width: 32px; height: 32px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; padding: 0;">&lt;</button>
+                                <div id="score-modal-current-set" style="width: 48px; height: 32px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center;">1</div>
+                                <button type="button" id="score-modal-next-set" style="width: 32px; height: 32px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; padding: 0;">&gt;</button>
+                            </div>
+
+                            <!-- Team 1 Input Row -->
+                            <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                                <div style="flex-grow: 1; height: 38px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; padding: 0 12px; display: flex; align-items: center; overflow: hidden;">
+                                    <span id="score-modal-team1-name" style="color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">TEAM 1</span>
+                                </div>
+                                <input type="number" name="score1" id="score-modal-score1" min="0" max="99" placeholder="0" style="width: 60px; height: 38px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 700; text-align: center; outline: none;" required>
+                            </div>
+
+                            <!-- Team 2 Input Row -->
+                            <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                                <div style="flex-grow: 1; height: 38px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; padding: 0 12px; display: flex; align-items: center; overflow: hidden;">
+                                    <span id="score-modal-team2-name" style="color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">TEAM 2</span>
+                                </div>
+                                <input type="number" name="score2" id="score-modal-score2" min="0" max="99" placeholder="0" style="width: 60px; height: 38px; background: #000000; border: 1px solid #ff3333; border-radius: 6px; color: #ff3333; font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 700; text-align: center; outline: none;" required>
+                            </div>
+                        </div>
+
+                        <!-- Buttons with App-consistent styling -->
+                        <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                            <button type="button" id="score-modal-random-btn" class="btn btn-secondary" style="height: 44px; font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;">
+                                Random
+                            </button>
+                            <div style="display: flex; gap: 10px; width: 100%;">
+                                <button type="button" id="score-modal-delete-btn" class="btn btn-danger-large" style="flex: 1; height: 44px; font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;">
+                                    Delete
+                                </button>
+                                <button type="submit" class="btn btn-primary" style="flex: 1; height: 44px; font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <!-- Client Script for Tab Toggling -->
+    <script src="/static/tournament.js?v=1.0.6" defer></script>
+</body>
+</html>

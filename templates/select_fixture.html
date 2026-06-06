@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmashHard - Select Fixture Type.">
+    <!-- Strict Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:; frame-ancestors 'none';">
+    <title>SmashHard - Select Fixture Type</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Decorative Premium Glow Effects -->
+    <div class="glow-bg-container" aria-hidden="true">
+        <div class="glow-blob blob-primary"></div>
+        <div class="glow-blob blob-secondary"></div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="portal-container" style="max-width: 550px;">
+        <div class="portal-card">
+            <header class="card-header">
+                <div class="logo-wrapper">
+                    <div class="smash-logo" aria-hidden="true"></div>
+                </div>
+                <h1>Select Fixture Model</h1>
+                <p class="subtitle">Step 2 of 2: Select a model for <strong>{{ name }}</strong></p>
+            </header>
+
+            <!-- Server Flash Messages -->
+            {% if error %}
+            <div class="alert-box alert-error" role="alert">
+                <span class="alert-icon">✗</span>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <div class="info-tag-container" style="margin-bottom: 24px; padding: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline;">
+                <span class="detail-label" style="color: var(--text-muted);">Registered Teams / Players ({{ teams|length }}):</span>
+                <span class="detail-value" style="font-weight: 500; color: var(--primary);">
+                    {{ teams|join(', ') }}
+                </span>
+            </div>
+
+            <form action="/tournament/fixture" method="POST">
+                <!-- CSRF Protection -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="choice-cards-container" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 30px;">
+                    <!-- Option 1: Leagues -->
+                    <label class="choice-card" style="position: relative; display: block; cursor: pointer;">
+                        <input type="radio" name="fixture_type" value="leagues" checked required style="position: absolute; opacity: 0; width: 0; height: 0;">
+                        <div class="choice-card-inner" style="padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.02); border-radius: 16px; transition: var(--transition-smooth);">
+                            <span class="card-title" style="font-size: 16px; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 6px;">Leagues (Round Robin)</span>
+                            <span class="card-desc" style="font-size: 13px; color: var(--text-muted); line-height: 1.4; display: block;">All teams play each other once. Final standings are decided by matches won, set score difference, and points.</span>
+                        </div>
+                    </label>
+
+                    <!-- Option 2: Groups -->
+                    <label class="choice-card" style="position: relative; display: block; {% if num_groups == 1 %}cursor: not-allowed; opacity: 0.45; pointer-events: none;{% else %}cursor: pointer;{% endif %}">
+                        <input type="radio" name="fixture_type" value="groups" required {% if num_groups == 1 %}disabled{% endif %} style="position: absolute; opacity: 0; width: 0; height: 0;">
+                        <div class="choice-card-inner" style="padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.02); border-radius: 16px; transition: var(--transition-smooth);">
+                            <span class="card-title" style="font-size: 16px; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 6px;">Groups Stage Only</span>
+                            <span class="card-desc" style="font-size: 13px; color: var(--text-muted); line-height: 1.4; display: block;">Teams are divided into {{ num_groups }} groups. Round-robin matches are played within each group independently.</span>
+                        </div>
+                    </label>
+
+                    <!-- Option 3: Groups + Leagues -->
+                    <label class="choice-card" style="position: relative; display: block; {% if num_groups == 1 %}cursor: not-allowed; opacity: 0.45; pointer-events: none;{% else %}cursor: pointer;{% endif %}">
+                        <input type="radio" name="fixture_type" value="groups_leagues" required {% if num_groups == 1 %}disabled{% endif %} style="position: absolute; opacity: 0; width: 0; height: 0;">
+                        <div class="choice-card-inner" style="padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.02); border-radius: 16px; transition: var(--transition-smooth);">
+                            <span class="card-title" style="font-size: 16px; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 6px;">Groups + Leagues Model</span>
+                            <span class="card-desc" style="font-size: 13px; color: var(--text-muted); line-height: 1.4; display: block;">First plays group stage round-robin matches. Top two teams from each group will advance to a Knockout stage.</span>
+                        </div>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <span>Generate Fixtures</span>
+                </button>
+            </form>
+
+            <footer class="form-footer">
+                <p><a href="/tournament/new" class="switch-link">← Go Back to Step 1</a></p>
+            </footer>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmashHard - Create Tournament.">
+    <!-- Strict Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:; frame-ancestors 'none';">
+    <title>SmashHard - New Tournament</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Decorative Premium Glow Effects -->
+    <div class="glow-bg-container" aria-hidden="true">
+        <div class="glow-blob blob-primary"></div>
+        <div class="glow-blob blob-secondary"></div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="portal-container" style="max-width: 500px;">
+        <div class="portal-card">
+            <header class="card-header">
+                <div class="logo-wrapper">
+                    <div class="smash-logo" aria-hidden="true"></div>
+                </div>
+                <h1>New Tournament</h1>
+                <p class="subtitle">Enter details to open registration</p>
+            </header>
+
+            <!-- Server Flash Messages -->
+            {% if error %}
+            <div class="alert-box alert-error" role="alert">
+                <span class="alert-icon">✗</span>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+             <form action="/tournament/new" method="POST">
+                <!-- CSRF Protection -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="input-group">
+                    <label for="tourney-name">Tournament Name</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="tourney-name" name="name" placeholder="e.g. SmashHard Open 2026" value="{{ name if name else '' }}" required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="entry-deadline">Registration Closing Date</label>
+                    <div class="input-wrapper">
+                        <input type="date" id="entry-deadline" name="entry_deadline" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 14px 16px; color: var(--text-main); font-size: 15px; outline: none; transition: var(--transition-smooth); font-family: inherit;">
+                    </div>
+                </div>
+
+                <div class="input-group" style="flex-direction: row; align-items: center; gap: 10px; margin-bottom: 20px; margin-top: 10px;">
+                    <input type="checkbox" id="open-registration" name="open_registration" value="1" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);">
+                    <label for="open-registration" style="margin-bottom: 0; cursor: pointer; font-size: 14px; font-weight: 500;">Allow Public Registration</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="margin-top: 24px; margin-bottom: 10px; width: 100%; padding: 14px;">
+                    <span>Create Tournament</span>
+                </button>
+            </form>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const entryDeadlineInput = document.getElementById('entry-deadline');
+
+                    // Set default deadline date to 7 days from now
+                    const today = new Date();
+                    today.setDate(today.getDate() + 7);
+                    const yyyy = today.getFullYear();
+                    const mm = String(today.getMonth() + 1).padStart(2, '0');
+                    const dd = String(today.getDate()).padStart(2, '0');
+                    entryDeadlineInput.value = `${yyyy}-${mm}-${dd}`;
+                });
+            </script>
+
+            <footer class="form-footer">
+                <p><a href="/dashboard" class="switch-link">← Cancel and Back to Dashboard</a></p>
+            </footer>
+        </div>
+    </main>
+</body>
+</html>

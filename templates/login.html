@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmashHard - Secure login page.">
+    <!-- Strict Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:; frame-ancestors 'none';">
+    <title>SmashHard - Sign In</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Decorative Premium Glow Effects -->
+    <div class="glow-bg-container" aria-hidden="true">
+        <div class="glow-blob blob-primary"></div>
+        <div class="glow-blob blob-secondary"></div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="portal-container">
+        <div class="portal-card">
+            <header class="card-header">
+                <div class="logo-wrapper">
+                    <div class="smash-logo" aria-hidden="true"></div>
+                </div>
+                <h1>SmashHard</h1>
+                <p class="subtitle">Please enter your credentials to authenticate.</p>
+            </header>
+
+            <!-- Server Flash Messages -->
+            {% if error %}
+            <div class="alert-box alert-error" role="alert">
+                <span class="alert-icon">✗</span>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+            {% if success %}
+            <div class="alert-box alert-success" role="alert">
+                <span class="alert-icon">✓</span>
+                <span>{{ success }}</span>
+            </div>
+            {% endif %}
+
+            <form action="/login" method="POST" id="login-form">
+                <!-- CSRF Protection -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="input-group">
+                    <label for="login-username">Username or Email</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="login-username" name="username" placeholder="Enter username or email" autocomplete="username" required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="login-password">Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="login-password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+                        <button type="button" class="password-toggle" id="login-pw-toggle" aria-label="Show password">
+                            <span class="eye-icon" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <span>Sign In</span>
+                </button>
+            </form>
+
+            <footer class="form-footer">
+                <p>New to SmashHard? <a href="/register" class="switch-link">Create a new user</a></p>
+            </footer>
+        </div>
+    </main>
+
+    <script src="/static/login.js" defer></script>
+</body>
+</html>
