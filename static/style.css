@@ -1,0 +1,1032 @@
+/* --- Custom Styling System --- */
+:root {
+    --bg-dark: #09090e;
+    --card-bg: rgba(20, 20, 28, 0.65);
+    --border-color: rgba(255, 255, 255, 0.08);
+    
+    /* Sporty Cyan-to-Emerald Palette */
+    --primary: #00f0ff;      /* Neon Cyan */
+    --primary-glow: rgba(0, 240, 255, 0.4);
+    --primary-hover: #33f3ff;
+    
+    --secondary: #00ff87;    /* Neon Emerald */
+    --success: #00e676;      /* Active Emerald */
+    --success-glow: rgba(0, 230, 118, 0.2);
+    --error: #ff1744;        /* Danger Crimson */
+    --error-glow: rgba(255, 23, 68, 0.2);
+    
+    --text-main: #f5f5f7;
+    --text-muted: #8e8e93;
+    --text-inverse: #09090e;
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- Base & Reset --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    position: relative;
+    padding: 20px;
+}
+
+/* --- Floating Background Blobs --- */
+.glow-bg-container {
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.glow-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.45;
+}
+
+.blob-primary {
+    width: 350px;
+    height: 350px;
+    background: var(--primary);
+    top: 15%;
+    left: 20%;
+    animation: float1 18s ease-in-out infinite;
+}
+
+.blob-secondary {
+    width: 400px;
+    height: 400px;
+    background: var(--secondary);
+    bottom: 15%;
+    right: 20%;
+    animation: float2 22s ease-in-out infinite;
+}
+
+@keyframes float1 {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(60px, -40px) scale(1.2); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes float2 {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-50px, 50px) scale(0.85); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+
+/* --- Layout Container & Card --- */
+.portal-container {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 440px;
+}
+
+.portal-card {
+    position: relative; /* Context for absolute positioning of child controls */
+    background: var(--card-bg);
+    backdrop-filter: blur(22px) saturate(190%);
+    -webkit-backdrop-filter: blur(22px) saturate(190%);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45), 
+                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    transform: translateY(0);
+    transition: var(--transition-smooth);
+}
+
+.portal-card:hover {
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55), 
+                inset 0 1px 2px rgba(255, 255, 255, 0.15);
+}
+
+/* --- Header Section --- */
+.card-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.logo-wrapper {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.smash-logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background-image: url("/static/smash.jpg");
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    box-shadow: 0 8px 16px var(--primary-glow);
+    border: 2px solid var(--primary);
+}
+
+.card-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    background: linear-gradient(to right, #ffffff, #c5c5d2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+}
+
+.card-header .subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 350;
+}
+
+/* --- Alert Box (Server Messages) --- */
+.alert-box {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid transparent;
+}
+
+.alert-error {
+    background-color: var(--error-glow);
+    border-color: rgba(255, 23, 68, 0.3);
+    color: #ff8a80;
+}
+
+.alert-success {
+    background-color: var(--success-glow);
+    border-color: rgba(0, 230, 118, 0.3);
+    color: #b9f6ca;
+}
+
+/* --- Form Elements --- */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.input-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #e0e0e6;
+    letter-spacing: 0.3px;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrapper input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text-main);
+    font-size: 15px;
+    transition: var(--transition-smooth);
+    outline: none;
+}
+
+.input-wrapper input:focus {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+/* Password Toggle Icon */
+.password-toggle {
+    position: absolute;
+    right: 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-smooth);
+    z-index: 5;
+}
+
+.password-toggle:hover {
+    color: var(--text-main);
+}
+
+.eye-icon {
+    width: 20px;
+    height: 20px;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: inline-block;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238e8e93'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'/%3E%3C/svg%3E");
+}
+
+.password-toggle.visible .eye-icon {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238e8e93'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18'/%3E%3C/svg%3E");
+}
+
+/* --- Password Strength Bar --- */
+.strength-indicator {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    height: 4px;
+    width: 100%;
+}
+
+.strength-segment {
+    flex: 1;
+    height: 100%;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    transition: var(--transition-smooth);
+}
+
+.input-help {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    transition: var(--transition-smooth);
+}
+
+/* Strength Colors */
+.strength-weak .strength-segment:nth-child(1) { background: var(--error); }
+.strength-weak #pw-strength-text { color: var(--error); }
+
+.strength-fair .strength-segment:nth-child(1),
+.strength-fair .strength-segment:nth-child(2) { background: #ffa726; }
+.strength-fair #pw-strength-text { color: #ffa726; }
+
+.strength-good .strength-segment:nth-child(1),
+.strength-good .strength-segment:nth-child(2),
+.strength-good .strength-segment:nth-child(3) { background: #ffee58; }
+.strength-good #pw-strength-text { color: #ffee58; }
+
+.strength-strong .strength-segment { background: var(--success); }
+.strength-strong #pw-strength-text { color: var(--success); }
+
+/* --- Buttons --- */
+.btn {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: var(--text-inverse);
+    box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 240, 255, 0.6);
+    background: linear-gradient(135deg, var(--primary-hover), var(--secondary));
+}
+
+.btn-primary:active {
+    transform: translateY(1px);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* --- Footer & Switching Elements --- */
+.form-footer {
+    text-align: center;
+    margin-top: 24px;
+}
+
+.form-footer p {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.switch-link {
+    color: var(--primary);
+    font-weight: 500;
+    font-size: 14px;
+    text-decoration: none;
+    transition: var(--transition-smooth);
+}
+
+.switch-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+/* --- Dashboard Style (LoggedIn State) --- */
+.dashboard-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.success-icon-wrapper {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--success-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    border: 1px solid rgba(0, 230, 118, 0.3);
+}
+
+.success-checkmark {
+    width: 14px;
+    height: 24px;
+    border: solid var(--success);
+    border-width: 0 4px 4px 0;
+    transform: rotate(45deg) translate(-2px, -2px);
+}
+
+.user-details-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    width: 100%;
+    margin: 24px 0;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.detail-label {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.detail-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+/* --- Badminton Organizer Custom Styles --- */
+
+.card-section {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+/* Standings Table Styling */
+.standings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.standings-table th {
+    padding: 12px 10px;
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.standings-table td {
+    padding: 14px 10px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    color: var(--text-main);
+}
+
+.standings-table tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Badges Styling */
+.badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-success {
+    background: rgba(0, 230, 118, 0.15);
+    color: #b9f6ca;
+    border: 1px solid rgba(0, 230, 118, 0.3);
+}
+
+.badge-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+
+.badge-info {
+    background: rgba(0, 240, 255, 0.15);
+    color: #80f3ff;
+    border: 1px solid rgba(0, 240, 255, 0.3);
+}
+
+.badge-error {
+    background: rgba(255, 23, 68, 0.15);
+    color: #ff8a80;
+    border: 1px solid rgba(255, 23, 68, 0.3);
+}
+
+/* Tab Control Styles */
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    outline: none;
+}
+
+.tab-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    background: rgba(0, 240, 255, 0.1);
+    font-weight: 600;
+}
+
+.hidden-view {
+    display: none !important;
+}
+
+.winner-text {
+    color: var(--secondary) !important;
+    font-weight: 600;
+}
+
+/* Choice card select states */
+.choice-card input[type="radio"]:checked + .choice-card-inner {
+    border-color: var(--primary) !important;
+    background: rgba(0, 240, 255, 0.05) !important;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.2) !important;
+}
+
+.choice-card:hover .choice-card-inner {
+    border-color: rgba(0, 240, 255, 0.4);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.tournament-list-item {
+    transition: var(--transition-smooth);
+}
+
+.tournament-list-item:hover {
+    border-color: rgba(0, 240, 255, 0.3) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Power Button (Sign Out) Icon styling */
+.btn-power {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    background: rgba(255, 23, 68, 0.08);
+    border: 1px solid rgba(255, 23, 68, 0.2);
+    color: #ff5252;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    z-index: 20;
+}
+
+.btn-power:hover {
+    background: rgba(255, 23, 68, 0.18);
+    border-color: rgba(255, 23, 68, 0.5);
+    color: #ff1744;
+    box-shadow: 0 0 12px rgba(255, 23, 68, 0.35);
+    transform: translateY(-1px);
+}
+
+.btn-power:active {
+    transform: translateY(1px);
+}
+
+.btn-power svg {
+    width: 12px !important;
+    height: 12px !important;
+}
+
+/* Delete/Danger Button Styling */
+.btn-danger {
+    background: rgba(255, 23, 68, 0.08);
+    border: 1px solid rgba(255, 23, 68, 0.2);
+    color: #ff5252;
+    padding: 6px 12px;
+    font-size: 11px;
+    width: auto;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-smooth);
+}
+
+.btn-danger:hover {
+    background: rgba(255, 23, 68, 0.18);
+    border-color: rgba(255, 23, 68, 0.5);
+    color: #ff1744;
+    box-shadow: 0 0 12px rgba(255, 23, 68, 0.35);
+    transform: translateY(-1px);
+}
+
+.btn-danger:active {
+    transform: translateY(1px);
+}
+
+.btn-danger-large {
+    background: rgba(255, 23, 68, 0.08);
+    border: 1px solid rgba(255, 23, 68, 0.2);
+    color: #ff5252;
+}
+
+.btn-danger-large:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 23, 68, 0.18);
+    border-color: rgba(255, 23, 68, 0.5);
+    color: #ff1744;
+    box-shadow: 0 4px 15px rgba(255, 23, 68, 0.3);
+}
+
+.btn-danger-large:active {
+    transform: translateY(1px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .portal-container {
+        width: 100%;
+        max-width: 100%;
+        padding: 10px;
+    }
+    .portal-card {
+        padding: 30px 20px;
+        border-radius: 20px;
+    }
+    .standings-table th, 
+    .standings-table td {
+        padding: 10px 6px;
+        font-size: 13px;
+    }
+    .tab-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    .card-section {
+        padding: 18px;
+        border-radius: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .portal-card {
+        padding: 20px 14px;
+        border-radius: 16px;
+        gap: 20px !important;
+    }
+    .card-header h1 {
+        font-size: 22px;
+    }
+    .card-header .subtitle {
+        font-size: 12px;
+    }
+    .standings-table th, 
+    .standings-table td {
+        padding: 8px 4px;
+        font-size: 12px;
+    }
+
+    .btn {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    header {
+        padding-bottom: 14px !important;
+    }
+    header h1 {
+        font-size: 20px !important;
+    }
+    .btn-power {
+        top: 14px;
+        right: 14px;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+    }
+    .btn-power svg {
+        width: 10px !important;
+        height: 10px !important;
+    }
+    .tournament-list-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px !important;
+        padding: 12px !important;
+    }
+    .tournament-list-item > div:last-child {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .tournament-list-item .btn,
+    .tournament-list-item form {
+        flex: 1;
+        width: 100%;
+    }
+    .tournament-list-item button {
+        width: 100% !important;
+    }
+    .tabs-wrapper {
+        gap: 4px !important;
+        margin-bottom: 16px !important;
+    }
+    .tab-btn {
+        flex: 1;
+        padding: 8px 6px;
+        font-size: 12px;
+        text-align: center;
+    }
+}
+
+/* Save Tick Button Styling */
+.btn-save-tick {
+    background: rgba(0, 230, 118, 0.08);
+    border: 1px solid rgba(0, 230, 118, 0.2);
+    color: var(--secondary);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    outline: none;
+}
+
+.btn-save-tick:hover {
+    background: rgba(0, 230, 118, 0.18);
+    border-color: rgba(0, 230, 118, 0.5);
+    color: var(--secondary);
+    box-shadow: 0 0 12px var(--success-glow);
+    transform: scale(1.05);
+}
+
+.btn-save-tick:active {
+    transform: scale(0.95);
+}
+
+/* Modern Point Input Styling */
+.point-input {
+    width: 46px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    transition: var(--transition-smooth);
+    -moz-appearance: textfield; /* Hides spin-buttons on Firefox */
+}
+
+.point-input::-webkit-outer-spin-button,
+.point-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0; /* Hides spin-buttons on Chrome/Safari/Edge */
+}
+
+.point-input:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.point-input:focus {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+    box-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* --- Modal Overlay & Dialog Styles --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.25s ease;
+}
+
+.modal-dialog {
+    background: #14141c;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), 
+                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+    animation: scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    line-height: 0.8;
+}
+
+.modal-close-btn:hover {
+    color: var(--text-main);
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+    from { transform: scale(0.9) translateY(10px); }
+    to { transform: scale(1) translateY(0); }
+}
+
+/* --- Entries Table & Action Buttons (edit.png Style) --- */
+.entries-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.entries-table thead tr {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.entries-table th {
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    text-align: left;
+}
+
+.entries-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    color: var(--text-main);
+    vertical-align: middle;
+}
+
+.entries-table tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Action button classes matching simple small icons */
+.btn-table-icon-edit {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    color: var(--primary);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    padding: 0;
+    margin: 0;
+}
+.btn-table-icon-edit:hover {
+    background: rgba(0, 240, 255, 0.18);
+    border-color: rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+    color: var(--primary-hover);
+}
+
+.btn-table-icon-delete {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 23, 68, 0.08);
+    border: 1px solid rgba(255, 23, 68, 0.2);
+    color: #ff5252;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    padding: 0;
+    margin: 0;
+}
+.btn-table-icon-delete:hover {
+    background: rgba(255, 23, 68, 0.18);
+    border-color: rgba(255, 23, 68, 0.5);
+    box-shadow: 0 0 8px rgba(255, 23, 68, 0.25);
+    color: #ff1744;
+}
+
+.btn-table-icon-save {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 230, 118, 0.08);
+    border: 1px solid rgba(0, 230, 118, 0.2);
+    color: var(--secondary);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    padding: 0;
+    margin: 0;
+}
+.btn-table-icon-save:hover {
+    background: rgba(0, 230, 118, 0.18);
+    border-color: rgba(0, 230, 118, 0.5);
+    box-shadow: 0 0 8px rgba(0, 230, 118, 0.25);
+    color: var(--secondary);
+}
+
+.btn-table-icon-cancel {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    padding: 0;
+    margin: 0;
+}
+.btn-table-icon-cancel:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--text-main);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+/* --- Sub-tab Control Styles --- */
+.sub-tab-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    outline: none;
+}
+
+.sub-tab-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.sub-tab-btn.active {
+    color: var(--secondary);
+    background: rgba(0, 255, 135, 0.1);
+    border-color: rgba(0, 255, 135, 0.3);
+    font-weight: 600;
+}
+
+
+
+
+
+

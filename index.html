@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Aura Portal - Secure, premium login and registration platform.">
+    <!-- Strict Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:; frame-ancestors 'none';">
+    <title>Aura Portal - Authenticate</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Decorative Premium Glow Effects -->
+    <div class="glow-bg-container" aria-hidden="true">
+        <div class="glow-blob blob-primary"></div>
+        <div class="glow-blob blob-secondary"></div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="portal-container">
+        <div class="portal-card" id="portal-card">
+            <!-- Header section shared/changing -->
+            <header class="card-header">
+                <div class="logo-wrapper">
+                    <!-- Premium geometric logo icon in CSS/SVG -->
+                    <div class="aura-logo" aria-hidden="true">
+                        <span class="logo-core"></span>
+                    </div>
+                </div>
+                <h1 id="portal-title">Aura Portal</h1>
+                <p id="portal-subtitle" class="subtitle">Welcome back! Please enter your details.</p>
+            </header>
+
+            <!-- LOGIN VIEW -->
+            <div id="login-view" class="form-view">
+                <form id="login-form" novalidate>
+                    <div class="input-group">
+                        <label for="login-username">Username or Email</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="login-username" name="username" placeholder="name@example.com" autocomplete="username" required>
+                            <span class="input-icon user-icon" aria-hidden="true"></span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="login-password">Password</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="login-password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+                            <button type="button" class="password-toggle" id="login-pw-toggle" aria-label="Show password">
+                                <span class="eye-icon" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="btn-login-submit">
+                        <span class="btn-text">Sign In</span>
+                        <span class="btn-loader hidden" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <footer class="form-footer">
+                    <p>New to Aura? <button type="button" class="switch-link" id="go-to-register">Create an account</button></p>
+                </footer>
+            </div>
+
+            <!-- REGISTER VIEW -->
+            <div id="register-view" class="form-view hidden">
+                <form id="register-form" novalidate>
+                    <div class="input-group">
+                        <label for="reg-name">Full Name</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="reg-name" name="fullname" placeholder="John Doe" autocomplete="name" required>
+                            <span class="input-icon name-icon" aria-hidden="true"></span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="reg-mobile">Mobile Number</label>
+                        <div class="input-wrapper">
+                            <input type="tel" id="reg-mobile" name="mobile" placeholder="9876543210" autocomplete="tel" required>
+                            <span class="input-icon phone-icon" aria-hidden="true"></span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="reg-email">Email Address</label>
+                        <div class="input-wrapper">
+                            <input type="email" id="reg-email" name="email" placeholder="john@example.com" autocomplete="email" required>
+                            <span class="input-icon email-icon" aria-hidden="true"></span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="reg-password">Password</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="reg-password" name="password" placeholder="••••••••" autocomplete="new-password" required>
+                            <button type="button" class="password-toggle" id="reg-pw-toggle" aria-label="Show password">
+                                <span class="eye-icon" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                        <div class="strength-indicator" id="pw-strength-bar">
+                            <div class="strength-segment"></div>
+                            <div class="strength-segment"></div>
+                            <div class="strength-segment"></div>
+                            <div class="strength-segment"></div>
+                        </div>
+                        <p class="input-help" id="pw-strength-text">Password must be at least 8 characters.</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="btn-register-submit">
+                        <span class="btn-text">Create Account</span>
+                        <span class="btn-loader hidden" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <footer class="form-footer">
+                    <p>Already have an account? <button type="button" class="switch-link" id="go-to-login">Log in</button></p>
+                </footer>
+            </div>
+            
+            <!-- SECURE LOGGED IN VIEW (POST-AUTHENTICATION DEMO) -->
+            <div id="dashboard-view" class="form-view hidden">
+                <div class="dashboard-content">
+                    <div class="success-icon-wrapper" aria-hidden="true">
+                        <div class="success-checkmark"></div>
+                    </div>
+                    <h2>Access Granted</h2>
+                    <p class="subtitle">Secure session established successfully.</p>
+                    
+                    <div class="user-details-card">
+                        <div class="detail-row">
+                            <span class="detail-label">Name</span>
+                            <span class="detail-value" id="dash-name">John Doe</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Email</span>
+                            <span class="detail-value" id="dash-email">john@example.com</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Mobile</span>
+                            <span class="detail-value" id="dash-mobile">9876543210</span>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary" id="btn-logout">
+                        <span>Sign Out</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Custom Toast Notifications (replaces unsafe alertDialogs) -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SmashHard - Dashboard.">
+    <!-- Strict Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:; frame-ancestors 'none';">
+    <title>SmashHard - Dashboard</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Decorative Premium Glow Effects -->
+    <div class="glow-bg-container" aria-hidden="true">
+        <div class="glow-blob blob-primary"></div>
+        <div class="glow-blob blob-secondary"></div>
+    </div>
+
+    <!-- Main Container - Redesigned for unified dashboard card -->
+    <main class="portal-container" style="max-width: 680px; width: 95%;">
+        
+        <div class="portal-card" style="display: flex; flex-direction: column; gap: 28px;">
+            <!-- Top Header -->
+            <header style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+                <div>
+                    <h1 style="font-size: 24px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 10px;">
+                        <span class="smash-logo" aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; border-width: 1px;"></span>
+                        SmashHard
+                    </h1>
+                    <p class="subtitle" style="font-size: 13px; margin-top: 4px; color: var(--text-muted);">Welcome, <strong style="color: var(--primary);">{{ username }}</strong></p>
+                </div>
+                
+                <form action="/logout" method="POST" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn-power" aria-label="Sign Out">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                            <line x1="12" y1="2" x2="12" y2="12"></line>
+                        </svg>
+                    </button>
+                </form>
+            </header>
+
+            <!-- Server Flash Messages -->
+            {% if success %}
+            <div class="alert-box alert-success" role="alert" style="margin-bottom: 0;">
+                <span class="alert-icon">✓</span>
+                <span>{{ success }}</span>
+            </div>
+            {% endif %}
+            {% if error %}
+            <div class="alert-box alert-error" role="alert" style="margin-bottom: 0;">
+                <span class="alert-icon">✗</span>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <!-- ACTIVE TOURNAMENTS SECTION -->
+            <section>
+                <h2 style="font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--primary);"></span>
+                    Active Tournaments
+                </h2>
+                
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    {% set active_count = namespace(value=0) %}
+                    {% for t in tournaments if t.status == 'active' %}
+                        {% set active_count.value = active_count.value + 1 %}
+                        <div class="tournament-list-item" style="padding: 16px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.01); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                            <div>
+                                <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    {{ t.name }}
+                                    {% if t.open_registration %}
+                                    <span class="badge badge-info" style="font-size: 10px; padding: 2px 6px;">Registration Open (Closes: {{ t.entry_deadline }})</span>
+                                    {% endif %}
+                                </h3>
+                                <div style="display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-muted);">
+                                    <span class="badge badge-secondary" style="font-size: 9px; padding: 2px 6px;">{{ t.fixture_type.replace('_', ' + ') if t.fixture_type else 'Not Selected (TBD)' }}</span>
+                                    <span>Organizer: {% if t.creator == username %}<strong style="color: var(--primary);">you</strong>{% else %}{{ t.creator }}{% endif %}</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                {% if username == 'admin' %}
+                                <form action="/tournament/{{ t.id }}/delete" method="POST" style="margin: 0; display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
+                                {% endif %}
+                                <a href="/tournament/{{ t.id }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 11px; width: auto; border-radius: 6px;">
+                                    <span>{% if t.creator == username or username == 'admin' %}Manage{% else %}View{% endif %} →</span>
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    {% if active_count.value == 0 %}
+                        <div style="padding: 20px; text-align: center; border: 1px dashed var(--border-color); border-radius: 12px; font-size: 13px; color: var(--text-muted);">
+                            No active tournaments in play.
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <!-- COMPLETED TOURNAMENTS SECTION -->
+            <section>
+                <h2 style="font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--secondary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--secondary);"></span>
+                    Completed Tournaments
+                </h2>
+                
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    {% set completed_count = namespace(value=0) %}
+                    {% for t in tournaments if t.status == 'completed' %}
+                        {% set completed_count.value = completed_count.value + 1 %}
+                        <div class="tournament-list-item" style="padding: 16px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.01); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                            <div>
+                                <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 4px;">{{ t.name }}</h3>
+                                <div style="display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-muted);">
+                                    <span class="badge badge-secondary" style="font-size: 9px; padding: 2px 6px;">{{ t.fixture_type.replace('_', ' + ') if t.fixture_type else 'Not Selected (TBD)' }}</span>
+                                    <span>Organizer: {% if t.creator == username %}you{% else %}{{ t.creator }}{% endif %}</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                {% if username == 'admin' %}
+                                <form action="/tournament/{{ t.id }}/delete" method="POST" style="margin: 0; display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
+                                {% endif %}
+                                <a href="/tournament/{{ t.id }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 11px; width: auto; border-radius: 6px;">
+                                    <span>View Results →</span>
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    {% if completed_count.value == 0 %}
+                        <div style="padding: 20px; text-align: center; border: 1px dashed var(--border-color); border-radius: 12px; font-size: 13px; color: var(--text-muted);">
+                            No completed tournaments yet.
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <!-- Bottom CTA: Create New Tournament -->
+            <footer style="margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center;">
+                <a href="/tournament/new" class="btn btn-primary" style="display: inline-flex; width: auto; padding: 12px 24px; font-size: 14px; border-radius: 12px;">
+                    <span>🏆 Create New Tournament</span>
+                </a>
+            </footer>
+
+        </div>
+
+    </main>
+</body>
+</html>
