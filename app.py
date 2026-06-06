@@ -12,6 +12,13 @@ from flask import Flask, render_template, request, redirect, url_for, session, a
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
+# --- Load environment variables from .env file (if available) ---
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 app = Flask(__name__)
 
 # --- Secure Secret Key Resolution ---
@@ -164,8 +171,37 @@ def init_db():
     finally:
         conn.close()
 
-# Initialize schema on load
+def fix_completed_tournaments():
+    """Correct the status of any existing tournaments whose status was corrupted by legacy logic."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT id, fixture_type, status FROM tournaments")
+            tournaments = cursor.fetchall()
+            for t in tournaments:
+                cursor.execute("SELECT stage, status FROM matches WHERE tournament_id = %s", (t['id'],))
+                matches = cursor.fetchall()
+                if not matches:
+                    continue
+                
+                if t['fixture_type'] == 'groups_leagues':
+                    final_match = next((m for m in matches if m['stage'] == 'final'), None)
+                    is_completed = (final_match is not None and final_match['status'] == 'completed')
+                else:
+                    is_completed = all(m['status'] == 'completed' for m in matches)
+                
+                new_status = 'completed' if is_completed else 'active'
+                if t['status'] != new_status:
+                    cursor.execute("UPDATE tournaments SET status = %s WHERE id = %s", (new_status, t['id']))
+                    logger.warning(f"Fixed status of tournament {t['id']} to {new_status}")
+    except Exception as e:
+        logger.error(f"Error fixing tournament statuses: {e}")
+    finally:
+        conn.close()
+
+# Initialize schema and fix legacy statuses on load
 init_db()
+fix_completed_tournaments()
 
 # --- DB-API Parameterized Helpers ---
 
@@ -991,19 +1027,25 @@ def handle_submit_score(tourney_id):
             for i in range(1, num_sets + 1):
                 s1_raw = request.form.get(f'score1_set{i}')
                 s2_raw = request.form.get(f'score2_set{i}')
-                if s1_raw is None or s2_raw is None:
-                    raise ValueError("Missing scores for some sets.")
-                s1 = int(s1_raw)
-                s2 = int(s2_raw)
-                if s1 < 0 or s2 < 0 or s1 > 99 or s2 > 99:
-                    raise ValueError("Scores must be positive integers.")
+                if s1_raw == '' or s2_raw == '' or s1_raw is None or s2_raw is None:
+                    s1 = None
+                    s2 = None
+                else:
+                    try:
+                        s1 = int(s1_raw)
+                        s2 = int(s2_raw)
+                    except ValueError:
+                        raise ValueError("Scores must be valid integers.")
+                    if s1 < 0 or s2 < 0 or s1 > 99 or s2 > 99:
+                        raise ValueError("Scores must be positive integers between 0 and 99.")
                 
-                if s1 > s2:
-                    total_sets_won1 += 1
-                elif s2 > s1:
-                    total_sets_won2 += 1
+                if s1 is not None and s2 is not None:
+                    sets_played += 1
+                    if s1 > s2:
+                        total_sets_won1 += 1
+                    elif s2 > s1:
+                        total_sets_won2 += 1
                 scores.append({'team1': s1, 'team2': s2})
-                sets_played += 1
         except ValueError as e:
             return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=str(e), active_tab="matches"))
 
@@ -1079,10 +1121,18 @@ def handle_submit_score(tourney_id):
                 }
                 tournament['matches'].append(final_match)
 
-    # Auto complete check
-    all_completed = all(m['status'] == 'completed' for m in tournament['matches'])
-    if all_completed:
+    # Determine if tournament is completed and update status based on fixture type
+    fixture_type = tournament.get('fixture_type')
+    if fixture_type == 'groups_leagues':
+        final_match = next((m for m in tournament['matches'] if m.get('stage') == 'final'), None)
+        is_completed = (final_match is not None and final_match['status'] == 'completed')
+    else:
+        is_completed = all(m['status'] == 'completed' for m in tournament['matches']) if tournament['matches'] else False
+
+    if is_completed:
         tournament['status'] = 'completed'
+    else:
+        tournament['status'] = 'active'
 
     if save_tournament(tournament):
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, success="Match score recorded.", active_tab="matches"))
@@ -1209,6 +1259,19 @@ def handle_generate_knockout(tourney_id):
         success_msg = "Knockout quarter-final fixtures generated!"
     else:
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Fixture type or group count does not support knockouts."))
+
+    # Determine if tournament is completed and update status based on fixture type
+    fixture_type = tournament.get('fixture_type')
+    if fixture_type == 'groups_leagues':
+        final_match = next((m for m in tournament['matches'] if m.get('stage') == 'final'), None)
+        is_completed = (final_match is not None and final_match['status'] == 'completed')
+    else:
+        is_completed = all(m['status'] == 'completed' for m in tournament['matches']) if tournament['matches'] else False
+
+    if is_completed:
+        tournament['status'] = 'completed'
+    else:
+        tournament['status'] = 'active'
 
     if save_tournament(tournament):
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, success=success_msg))
