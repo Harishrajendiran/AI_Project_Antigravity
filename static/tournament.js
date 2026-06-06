@@ -289,16 +289,67 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        function saveCurrentScoresToArray() {
+            if (!activeMatchScores[activeSetNum - 1]) {
+                activeMatchScores[activeSetNum - 1] = { team1: null, team2: null };
+            }
+            activeMatchScores[activeSetNum - 1].team1 = score1Input.value !== '' ? parseInt(score1Input.value, 10) : null;
+            activeMatchScores[activeSetNum - 1].team2 = score2Input.value !== '' ? parseInt(score2Input.value, 10) : null;
+        }
+
+        if (score1Input && score2Input) {
+            score1Input.addEventListener('input', saveCurrentScoresToArray);
+            score2Input.addEventListener('input', saveCurrentScoresToArray);
+        }
+
+        // Helper to append all set scores as hidden inputs for bulk submission
+        function prepareBulkSubmitForm() {
+            const setNumInput = document.getElementById('score-modal-set-num');
+            if (setNumInput) {
+                setNumInput.removeAttribute('name');
+            }
+
+            // Remove any previously appended bulk input fields to avoid duplicates
+            form.querySelectorAll('input[name^="score1_set"], input[name^="score2_set"]').forEach(el => el.remove());
+
+            // Append new hidden inputs for all sets
+            for (let i = 0; i < totalSets; i++) {
+                const s = activeMatchScores[i] || { team1: null, team2: null };
+                
+                const input1 = document.createElement('input');
+                input1.type = 'hidden';
+                input1.name = `score1_set${i + 1}`;
+                input1.value = s.team1 !== null ? s.team1 : '';
+                form.appendChild(input1);
+
+                const input2 = document.createElement('input');
+                input2.type = 'hidden';
+                input2.name = `score2_set${i + 1}`;
+                input2.value = s.team2 !== null ? s.team2 : '';
+                form.appendChild(input2);
+            }
+        }
+
+        const form = document.getElementById('score-modal-form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                saveCurrentScoresToArray();
+                prepareBulkSubmitForm();
+            });
+        }
+
         // Prev/Next Set Controls
         if (prevSetBtn && nextSetBtn) {
             prevSetBtn.addEventListener('click', () => {
                 if (activeSetNum > 1) {
+                    saveCurrentScoresToArray();
                     activeSetNum--;
                     updateModalSetView();
                 }
             });
             nextSetBtn.addEventListener('click', () => {
                 if (activeSetNum < totalSets) {
+                    saveCurrentScoresToArray();
                     activeSetNum++;
                     updateModalSetView();
                 }
@@ -318,15 +369,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     score1Input.value = loseScore;
                     score2Input.value = winScore;
                 }
+                saveCurrentScoresToArray();
             });
         }
 
         // Delete button clears the inputs and submits
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
+                activeMatchScores = activeMatchScores.map(() => ({ team1: null, team2: null }));
                 score1Input.value = '';
                 score2Input.value = '';
-                document.getElementById('score-modal-form').submit();
+                prepareBulkSubmitForm();
+                form.submit();
             });
         }
     }
