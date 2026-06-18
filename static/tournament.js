@@ -384,4 +384,51 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+
+    // Organizer control panel select/input dynamic validation
+    const fixtureTypeDetail = document.getElementById('fixture-type-detail');
+    const numGroupsDetail = document.getElementById('tourney-num-groups');
+
+    if (numGroupsDetail && fixtureTypeDetail) {
+        const updateFixtureOptionsDetail = () => {
+            if (numGroupsDetail.value === "1") {
+                fixtureTypeDetail.value = "leagues";
+                Array.from(fixtureTypeDetail.options).forEach(opt => {
+                    if (opt.value !== "leagues") {
+                        opt.disabled = true;
+                    }
+                });
+            } else {
+                Array.from(fixtureTypeDetail.options).forEach(opt => {
+                    opt.disabled = false;
+                });
+            }
+        };
+
+        numGroupsDetail.addEventListener('change', updateFixtureOptionsDetail);
+        numGroupsDetail.addEventListener('input', updateFixtureOptionsDetail);
+        updateFixtureOptionsDetail();
+    }
+
+    // Export functionality (PDF & Word stage filtering)
+    const stageSelect = document.getElementById('export-stage-select');
+    const btnPdf = document.getElementById('btn-export-pdf');
+    const btnWord = document.getElementById('btn-export-word');
+    if (stageSelect && btnPdf && btnWord) {
+        const tourneyId = window.location.pathname.split('/').filter(Boolean).pop();
+        const getExportUrl = (format) => {
+            const stage = stageSelect.value;
+            let url = `/tournament/${tourneyId}/export/${format}`;
+            if (stage) {
+                url += '?stage=' + encodeURIComponent(stage);
+            }
+            return url;
+        };
+        btnPdf.addEventListener('click', () => {
+            window.open(getExportUrl('pdf'), '_blank');
+        });
+        btnWord.addEventListener('click', () => {
+            window.location.href = getExportUrl('word');
+        });
+    }
 });

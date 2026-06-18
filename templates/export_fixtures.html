@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tournament.name }} - Fixture Schedule</title>
+    <!-- Use Outfit font if on screen -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- Screen Styles (Dark Mode) --- */
+        body {
+            background-color: #09090e;
+            color: #f5f5f7;
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 850px;
+            background: rgba(20, 20, 28, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+        }
+
+        .no-print-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 850px;
+            margin-bottom: 20px;
+        }
+
+        .btn-action {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-back {
+            color: #8e8e93;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-back:hover {
+            color: #f5f5f7;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-print {
+            color: #09090e;
+            background: linear-gradient(135deg, #00f0ff, #00ff87);
+            border: none;
+            box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3);
+        }
+
+        .btn-print:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 240, 255, 0.5);
+        }
+
+        h1, h2, h3 {
+            margin: 0 0 10px 0;
+        }
+
+        .header-section {
+            border-bottom: 2px dashed rgba(255, 255, 255, 0.1);
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 26px;
+            font-weight: 600;
+            color: #00f0ff;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #8e8e93;
+        }
+
+        .meta-item strong {
+            color: #f5f5f7;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #00ff87;
+            margin-top: 25px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 6px;
+        }
+
+        .group-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .group-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .group-card h4 {
+            margin: 0 0 10px 0;
+            color: #00f0ff;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+            padding-bottom: 4px;
+        }
+
+        .group-card ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 14px;
+            color: #e0e0e6;
+        }
+
+        .group-card li {
+            margin-bottom: 5px;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #8e8e93;
+            font-weight: 600;
+            padding: 10px;
+            text-align: left;
+        }
+
+        td {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 10px;
+            color: #e0e0e6;
+        }
+
+        .score-box-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .score-box {
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 4px;
+            width: 32px;
+            height: 24px;
+            text-align: center;
+            line-height: 24px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #8e8e93;
+        }
+
+        .score-divider {
+            color: #8e8e93;
+            line-height: 24px;
+        }
+
+        .signature-section {
+            margin-top: 40px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            font-size: 13px;
+            color: #8e8e93;
+        }
+
+        .sig-box {
+            flex: 1;
+            text-align: center;
+        }
+
+        .sig-line {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 8px;
+            height: 30px;
+        }
+
+        /* --- Print Specific Styles (High-Contrast Black & White) --- */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+                font-size: 12pt !important;
+            }
+
+            .container {
+                border: none !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                background: none !important;
+                max-width: 100% !important;
+            }
+
+            .no-print, .no-print-bar {
+                display: none !important;
+            }
+
+            .title {
+                color: #000000 !important;
+                font-size: 20pt !important;
+            }
+
+            .meta-grid {
+                color: #000000 !important;
+            }
+
+            .meta-item strong {
+                color: #000000 !important;
+            }
+
+            .section-title {
+                color: #000000 !important;
+                border-bottom: 2px solid #000000 !important;
+                font-size: 14pt !important;
+                margin-top: 20pt !important;
+            }
+
+            .group-card {
+                border: 1px solid #000000 !important;
+                background: none !important;
+            }
+
+            .group-card h4 {
+                color: #000000 !important;
+                border-bottom: 1px solid #000000 !important;
+            }
+
+            .group-card ul {
+                color: #000000 !important;
+            }
+
+            table {
+                border-collapse: collapse !important;
+                width: 100% !important;
+            }
+
+            th {
+                background-color: #f2f2f2 !important;
+                border: 1px solid #000000 !important;
+                color: #000000 !important;
+                font-size: 10pt !important;
+            }
+
+            td {
+                border: 1px solid #000000 !important;
+                color: #000000 !important;
+                font-size: 10pt !important;
+            }
+
+            .score-box {
+                border: 1px solid #000000 !important;
+                background: none !important;
+                color: #000000 !important; /* Print scores in black */
+            }
+
+            .score-divider {
+                color: #000000 !important;
+            }
+
+            .signature-section {
+                border-top: 1px solid #000000 !important;
+                color: #000000 !important;
+            }
+
+            .sig-line {
+                border-bottom: 1px solid #000000 !important;
+            }
+        }
+
+        /* --- MS Word Specific Styles (If rendering as word) --- */
+        {% if export_type == 'word' %}
+        body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            font-family: Arial, sans-serif !important;
+        }
+        .container {
+            border: none !important;
+            background: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+        .title {
+            color: #000000 !important;
+        }
+        .section-title {
+            color: #000000 !important;
+            border-bottom: 2px solid #000000 !important;
+        }
+        .group-card {
+            border: 1px solid #000000 !important;
+            background-color: #f9f9f9 !important;
+            padding: 10px !important;
+            margin-bottom: 10px !important;
+        }
+        .group-card h4 {
+            color: #000000 !important;
+        }
+        table {
+            width: 100% !important;
+            border: 1px solid #000000 !important;
+        }
+        th {
+            background-color: #f2f2f2 !important;
+            color: #000000 !important;
+            border: 1px solid #000000 !important;
+        }
+        td {
+            color: #000000 !important;
+            border: 1px solid #000000 !important;
+        }
+        .score-box {
+            border: 1px solid #000000 !important;
+            background-color: #ffffff !important;
+            width: 30px !important;
+            height: 20px !important;
+        }
+        .signature-section {
+            border-top: 1px solid #000000 !important;
+            color: #000000 !important;
+        }
+        .sig-line {
+            border-bottom: 1px solid #000000 !important;
+        }
+        {% endif %}
+    </style>
+</head>
+<body {% if export_type == 'word' %}style="background-color: #ffffff; color: #000000;"{% endif %}>
+
+    <!-- Screen Navigation & Controls -->
+    {% if export_type != 'word' %}
+    <div class="no-print-bar">
+        <a href="/tournament/{{ tournament.id }}" class="btn-action btn-back">
+            <span>← Back to Tournament</span>
+        </a>
+        <button onclick="window.print();" class="btn-action btn-print">
+            <span>🖨️ Open Print Dialog</span>
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Main Printable Content Container -->
+    <div class="container">
+        
+        <!-- Header Information -->
+        <header class="header-section">
+            <h1 class="title">{{ tournament.name }} - {{ stage_title if stage_title else 'Fixture Score Sheet' }}</h1>
+            <div class="meta-grid">
+                <div class="meta-item">Organizer: <strong>{{ tournament.creator }}</strong></div>
+                <div class="meta-item">Status: <strong>{{ tournament.status.replace('_', ' ') | capitalize }}</strong></div>
+                <div class="meta-item">Format: <strong>{{ tournament.fixture_type.replace('_', ' + ') | capitalize if tournament.fixture_type else 'Not Selected' }}</strong></div>
+                <div class="meta-item">Sets Rules: <strong>Best of {{ tournament.num_sets }} ({{ tournament.winning_point }} Pts)</strong></div>
+                <div class="meta-item">Groups: <strong>{{ tournament.num_groups }}</strong></div>
+                <div class="meta-item">Max Teams/Group: <strong>{{ tournament.teams_per_group }}</strong></div>
+            </div>
+        </header>
+
+        <!-- Group Distributions Section -->
+        {% if tournament.groups %}
+        <h2 class="section-title">Group Distribution</h2>
+        <div class="group-container">
+            {% for g_name, g_teams in tournament.groups.items() | sort %}
+            <div class="group-card">
+                <h4>Group {{ g_name }}</h4>
+                <ul>
+                    {% for team in g_teams %}
+                    <li>{{ team }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Match Schedule Section -->
+        <h2 class="section-title">Fixture Match Schedule & Scores</h2>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <thead>
+                <tr>
+                    <th style="width: 50px; text-align: center;">Match</th>
+                    <th style="width: 140px;">Stage / Round</th>
+                    <th style="text-align: right; width: 200px;">Team 1</th>
+                    <th style="text-align: center; width: 240px;">Score Entry Fields</th>
+                    <th style="text-align: left; width: 200px;">Team 2</th>
+                    <th style="width: 140px;">Result / Winner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in tournament.matches %}
+                <tr>
+                    <td style="text-align: center; font-weight: bold;">{{ loop.index }}</td>
+                    <td>
+                        {% if m.stage == 'quarter' %}Quarter-final
+                        {% elif m.stage == 'semi' %}Semi-final
+                        {% elif m.stage == 'final' %}Final
+                        {% else %}
+                            {% if m.group %}Group {{ m.group }} | {% endif %}Round {{ m.round }}
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: 500;">
+                        {{ m.team1 }}
+                    </td>
+                    <td style="text-align: center; vertical-align: middle;">
+                        <div class="score-box-wrapper">
+                            {% for set_num in range(1, tournament.num_sets + 1) %}
+                                {% set set_score = m.scores[set_num - 1] if m.scores and m.scores|length >= set_num else None %}
+                                <div style="display: inline-flex; align-items: center; gap: 2px; margin: 0 4px;">
+                                    <div class="score-box">
+                                        {% if set_score and set_score.team1 is not none %}{{ set_score.team1 }}{% else %}&nbsp;{% endif %}
+                                    </div>
+                                    <span class="score-divider">-</span>
+                                    <div class="score-box">
+                                        {% if set_score and set_score.team2 is not none %}{{ set_score.team2 }}{% else %}&nbsp;{% endif %}
+                                    </div>
+                                </div>
+                                {% if not loop.last %}
+                                    <span class="score-divider" style="margin: 0 2px; font-weight: bold;">|</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td style="text-align: left; font-weight: 500;">
+                        {{ m.team2 }}
+                    </td>
+                    <td style="vertical-align: middle;">
+                        {% if m.status == 'completed' %}
+                            <strong>
+                                {% if m.score1 > m.score2 %}{{ m.team1 }}
+                                {% else %}{{ m.team2 }}{% endif %}
+                            </strong>
+                            ({{ m.score1 }}-{{ m.score2 }})
+                        {% else %}
+                            {% if export_type == 'word' %}
+                            Winner: ________________
+                            {% else %}
+                            <div style="border-bottom: 1px solid #777; height: 20px; width: 100%;"></div>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Signature Block -->
+        <footer class="signature-section">
+            <div class="sig-box">
+                <div class="sig-line"></div>
+                <div>Tournament Director Signature</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-line"></div>
+                <div>Date</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-line"></div>
+                <div>Official Stamp / Notes</div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Auto-Print Trigger Script -->
+    {% if export_type == 'pdf' %}
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        };
+    </script>
+    {% endif %}
+
+</body>
+</html>

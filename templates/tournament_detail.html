@@ -182,17 +182,13 @@
                                 <div class="input-group" style="text-align: left; margin-bottom: 0;">
                                     <label for="tourney-num-groups" style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Number of Groups</label>
                                     <div class="input-wrapper">
-                                        <select id="tourney-num-groups" name="num_groups" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth); font-family: inherit;">
-                                            <option value="1">1 (Single League)</option>
-                                            <option value="2" selected>2 Groups</option>
-                                            <option value="4">4 Groups</option>
-                                        </select>
+                                        <input type="number" id="tourney-num-groups" name="num_groups" min="1" max="16" value="2" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth);">
                                     </div>
                                 </div>
                                 <div class="input-group" style="text-align: left; margin-bottom: 0;">
                                     <label for="tourney-teams-per-group" style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Teams per Group</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="tourney-teams-per-group" name="teams_per_group" min="2" max="16" value="4" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth);">
+                                        <input type="number" id="tourney-teams-per-group" name="teams_per_group" min="2" max="32" value="4" required style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition-smooth);">
                                     </div>
                                 </div>
                             </div>
@@ -202,32 +198,7 @@
                             </button>
                         </form>
 
-                        <script>
-                            document.addEventListener('DOMContentLoaded', () => {
-                                const fixtureTypeDetail = document.getElementById('fixture-type-detail');
-                                const numGroupsDetail = document.getElementById('tourney-num-groups');
 
-                                const updateFixtureOptionsDetail = () => {
-                                    if (numGroupsDetail.value === "1") {
-                                        fixtureTypeDetail.value = "leagues";
-                                        Array.from(fixtureTypeDetail.options).forEach(opt => {
-                                            if (opt.value !== "leagues") {
-                                                opt.disabled = true;
-                                            }
-                                        });
-                                    } else {
-                                        Array.from(fixtureTypeDetail.options).forEach(opt => {
-                                            opt.disabled = false;
-                                        });
-                                    }
-                                };
-
-                                if (numGroupsDetail && fixtureTypeDetail) {
-                                    numGroupsDetail.addEventListener('change', updateFixtureOptionsDetail);
-                                    updateFixtureOptionsDetail();
-                                }
-                            });
-                        </script>
                     {% else %}
                         <p style="font-size: 12px; color: var(--error);">* At least 2 teams must be registered to close entry and push to fixture.</p>
                     {% endif %}
@@ -237,9 +208,50 @@
         </section>
         {% else %}
         <!-- Tab Controls -->
-        <div class="tabs-wrapper" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 24px;">
-            <button type="button" class="tab-btn {% if request.args.get('active_tab') != 'matches' %}active{% endif %}" id="tab-btn-standings">Standings & Tables</button>
-            <button type="button" class="tab-btn {% if request.args.get('active_tab') == 'matches' %}active{% endif %}" id="tab-btn-matches">Matches & Results</button>
+        <div class="tabs-wrapper" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="tab-btn {% if request.args.get('active_tab') != 'matches' %}active{% endif %}" id="tab-btn-standings">Standings & Tables</button>
+                <button type="button" class="tab-btn {% if request.args.get('active_tab') == 'matches' %}active{% endif %}" id="tab-btn-matches">Matches & Results</button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 6px 12px; flex-wrap: wrap;">
+                <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Export Stage:</span>
+                <select id="export-stage-select" style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 6px 12px; color: var(--text-main); font-size: 13px; outline: none; cursor: pointer; font-family: inherit; transition: var(--transition-smooth);">
+                    <option value="">Full Tournament</option>
+                    {% if tournament.fixture_type == 'leagues' %}
+                        <option value="group">League Stage</option>
+                    {% else %}
+                        <option value="group">Group Stage</option>
+                    {% endif %}
+                    
+                    {% set ns = namespace(has_quarter=false, has_semi=false, has_final=false, has_knockout=false) %}
+                    {% for m in tournament.matches %}
+                        {% if m.stage == 'quarter' %}{% set ns.has_quarter = true %}{% set ns.has_knockout = true %}
+                        {% elif m.stage == 'semi' %}{% set ns.has_semi = true %}{% set ns.has_knockout = true %}
+                        {% elif m.stage == 'final' %}{% set ns.has_final = true %}{% set ns.has_knockout = true %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if ns.has_quarter %}
+                        <option value="quarter">Quarter-finals</option>
+                    {% endif %}
+                    {% if ns.has_semi %}
+                        <option value="semi">Semi-finals</option>
+                    {% endif %}
+                    {% if ns.has_final %}
+                        <option value="final">Finals</option>
+                    {% endif %}
+                    {% if ns.has_knockout %}
+                        <option value="knockout">All Knockouts</option>
+                    {% endif %}
+                </select>
+                <button type="button" id="btn-export-pdf" class="btn btn-secondary" style="font-size: 13px; padding: 8px 14px; border-radius: 8px; background: rgba(0, 240, 255, 0.1); border: 1px solid var(--primary); color: var(--primary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                    <span>📄 PDF</span>
+                </button>
+                <button type="button" id="btn-export-word" class="btn btn-secondary" style="font-size: 13px; padding: 8px 14px; border-radius: 8px; background: rgba(0, 255, 128, 0.1); border: 1px solid var(--secondary); color: var(--secondary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                    <span>📝 Word</span>
+                </button>
+            </div>
+
         </div>
 
         <!-- VIEW 1: STANDINGS -->
