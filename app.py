@@ -107,6 +107,7 @@ def init_db():
                     `num_sets` INT NOT NULL DEFAULT 3,
                     `num_groups` INT NOT NULL DEFAULT 2,
                     `teams_per_group` INT NOT NULL DEFAULT 4,
+                    `promoted_per_group` INT NOT NULL DEFAULT 2,
                     `status` VARCHAR(20) NOT NULL DEFAULT 'active',
                     `open_registration` BOOLEAN NOT NULL DEFAULT TRUE,
                     `entry_deadline` DATE NOT NULL,
@@ -115,17 +116,30 @@ def init_db():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """)
 
+            # Safe database migration: Add column if not exists
+            try:
+                cursor.execute("ALTER TABLE `tournaments` ADD COLUMN `promoted_per_group` INT NOT NULL DEFAULT 2")
+            except Exception:
+                pass
+
             # Registered teams table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS `tournament_teams` (
                     `tournament_id` VARCHAR(36) NOT NULL,
                     `team_name` VARCHAR(30) NOT NULL,
                     `registered_by` VARCHAR(20) NOT NULL,
+                    `is_promoted` BOOLEAN NOT NULL DEFAULT FALSE,
                     PRIMARY KEY (`tournament_id`, `team_name`),
                     FOREIGN KEY (`tournament_id`) REFERENCES `tournaments` (`id`) ON DELETE CASCADE,
                     FOREIGN KEY (`registered_by`) REFERENCES `users` (`username`) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """)
+
+            # Safe database migration: Add is_promoted column if not exists
+            try:
+                cursor.execute("ALTER TABLE `tournament_teams` ADD COLUMN `is_promoted` BOOLEAN NOT NULL DEFAULT FALSE")
+            except Exception:
+                pass
 
             # Group distribution table
             cursor.execute("""
@@ -286,11 +300,13 @@ def get_tournament_by_id(tourney_id):
             if t.get('created_at'):
                 t['created_at'] = t['created_at'].isoformat()
             t['open_registration'] = bool(t['open_registration'])
+            t['promoted_per_group'] = int(t.get('promoted_per_group', 2))
             
-            cursor.execute("SELECT team_name, registered_by FROM tournament_teams WHERE tournament_id = %s", (tourney_id,))
+            cursor.execute("SELECT team_name, registered_by, is_promoted FROM tournament_teams WHERE tournament_id = %s", (tourney_id,))
             teams_rows = cursor.fetchall()
             t['teams'] = [row['team_name'] for row in teams_rows]
             t['registered_by'] = {row['team_name']: row['registered_by'] for row in teams_rows}
+            t['promoted_teams'] = [row['team_name'] for row in teams_rows if row['is_promoted']]
             
             cursor.execute("SELECT group_name, team_name FROM tournament_groups WHERE tournament_id = %s", (tourney_id,))
             groups_rows = cursor.fetchall()
@@ -326,6 +342,27 @@ def get_tournament_by_id(tourney_id):
 
             matches.sort(key=match_sort_key)
             t['matches'] = matches
+
+            # Auto-promote top default qualifiers if the group stage matches are completed and no teams have been promoted yet
+            if t.get('fixture_type') == 'groups_leagues' and not t.get('promoted_teams'):
+                group_matches = [m for m in matches if m.get('stage') == 'group']
+                if group_matches and all(m['status'] == 'completed' for m in group_matches):
+                    # Check if any knockout matches are generated yet (if so, do not overwrite)
+                    has_knockout = any(m.get('stage') in ['quarter', 'semi', 'final'] for m in matches)
+                    if not has_knockout:
+                        promoted_per_group = int(t.get('promoted_per_group', 2))
+                        auto_promoted = []
+                        for g in t.get('groups', {}).keys():
+                            g_standings = calculate_standings(t, g)
+                            for rank in range(promoted_per_group):
+                                if rank < len(g_standings):
+                                    auto_promoted.append(g_standings[rank]['team'])
+                        
+                        # Save them to the database
+                        for team_name in auto_promoted:
+                            cursor.execute("UPDATE tournament_teams SET is_promoted = 1 WHERE tournament_id = %s AND team_name = %s", (t['id'], team_name))
+                        t['promoted_teams'] = auto_promoted
+
             return t
     except Exception as e:
         logger.error(f"Database error in get_tournament_by_id: {e}")
@@ -340,9 +377,9 @@ def save_tournament(t):
             cursor.execute("""
                 INSERT INTO tournaments (
                     id, name, creator, fixture_type, winning_point, num_sets, 
-                    num_groups, teams_per_group, status, open_registration, 
+                    num_groups, teams_per_group, promoted_per_group, status, open_registration, 
                     entry_deadline, created_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
                     name = VALUES(name),
                     fixture_type = VALUES(fixture_type),
@@ -350,24 +387,28 @@ def save_tournament(t):
                     num_sets = VALUES(num_sets),
                     num_groups = VALUES(num_groups),
                     teams_per_group = VALUES(teams_per_group),
+                    promoted_per_group = VALUES(promoted_per_group),
                     status = VALUES(status),
                     open_registration = VALUES(open_registration),
                     entry_deadline = VALUES(entry_deadline)
             """, (
                 t['id'], t['name'], t['creator'], t.get('fixture_type'), 
                 t.get('winning_point', 21), t.get('num_sets', 3), 
-                t.get('num_groups', 2), t.get('teams_per_group', 4), 
+                t.get('num_groups', 2), t.get('teams_per_group', 4),
+                t.get('promoted_per_group', 2),
                 t.get('status', 'active'), t.get('open_registration', True), 
                 t.get('entry_deadline'), t.get('created_at')
             ))
             
             cursor.execute("DELETE FROM tournament_teams WHERE tournament_id = %s", (t['id'],))
             registered_by = t.get('registered_by', {})
+            promoted_teams = t.get('promoted_teams', [])
             for team_name in t.get('teams', []):
                 creator = registered_by.get(team_name, t['creator'])
+                is_prom = 1 if team_name in promoted_teams else 0
                 cursor.execute(
-                    "INSERT INTO tournament_teams (tournament_id, team_name, registered_by) VALUES (%s, %s, %s)",
-                    (t['id'], team_name, creator)
+                    "INSERT INTO tournament_teams (tournament_id, team_name, registered_by, is_promoted) VALUES (%s, %s, %s, %s)",
+                    (t['id'], team_name, creator, is_prom)
                 )
                 
             cursor.execute("DELETE FROM tournament_groups WHERE tournament_id = %s", (t['id'],))
@@ -744,6 +785,7 @@ def handle_create_tournament():
         'num_sets': 3,
         'num_groups': 2,
         'teams_per_group': 4,
+        'promoted_per_group': 2,
         'status': 'active',
         'matches': [],
         'open_registration': open_registration_checked,
@@ -1164,42 +1206,83 @@ def handle_generate_knockout(tourney_id):
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Knockout brackets are already generated."))
 
     num_groups = tournament.get('num_groups', 2)
+    promoted_per_group = int(tournament.get('promoted_per_group', 2))
+    promoted_teams = tournament.get('promoted_teams', [])
 
-    # 1. Collect all winners and runners from all groups
-    winners = []
-    runners = []
-    for g_idx in range(num_groups):
-        group_name = chr(65 + g_idx)
-        group_standings = calculate_standings(tournament, group_name)
-        
-        w_team = group_standings[0]['team'] if len(group_standings) > 0 else 'BYE'
-        r_team = group_standings[1]['team'] if len(group_standings) > 1 else 'BYE'
-        
-        winners.append((w_team, group_name))
-        runners.append((r_team, group_name))
+    promoted_teams_count = len(promoted_teams)
+    if promoted_teams_count not in [8, 16, 32]:
+        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=f"Knockout fixtures can only be generated if the selected team count is exactly 8, 16, or 32. Currently, {promoted_teams_count} teams are selected."))
+
+
+    # 1. Collect all advancing teams grouped by seed/rank
+    all_advancing = []
+    for rank in range(promoted_per_group):
+        for g_idx in range(num_groups):
+            group_name = chr(65 + g_idx)
+            group_standings = calculate_standings(tournament, group_name)
+            
+            # Filter standings for this group to only include teams that are marked promoted
+            promoted_in_group = [s['team'] for s in group_standings if s['team'] in promoted_teams]
+            
+            if rank < len(promoted_in_group):
+                team = promoted_in_group[rank]
+            else:
+                team = 'BYE'
+            all_advancing.append((team, group_name))
 
     # 2. Find the next power of 2 size for the bracket
+    total_advancing = len(all_advancing)
     p = 2
-    while p < (num_groups * 2):
+    while p < total_advancing:
         p *= 2
     num_matches = p // 2
 
-    # 3. Pad both winners and runners lists with 'BYE' to ensure size is num_matches
-    while len(winners) < num_matches:
-        winners.append(('BYE', None))
-    while len(runners) < num_matches:
-        runners.append(('BYE', None))
+    # 3. Pad list with 'BYE' to ensure size is p
+    while len(all_advancing) < p:
+        all_advancing.append(('BYE', None))
 
     # 4. Determine stage name based on bracket size p
     stage_names = {2: 'final', 4: 'semi', 8: 'quarter', 16: 'round_of_16', 32: 'round_of_32'}
     stage_name = stage_names.get(p, f"round_of_{p}")
     success_msg = f"Knockout {stage_name.replace('_', ' ')} fixtures generated!"
 
-    # 5. Generate first round matches pairing winners with runners
+    # 5. Seeding: first half plays second half in reverse order (high-seed vs low-seed)
+    t1_list = all_advancing[:num_matches]
+    t2_list = all_advancing[num_matches:]
+    t2_list.reverse()
+
+    # 6. Same-group matchup avoidance: swap opponents in t2_list to resolve conflicts
     for i in range(num_matches):
-        t1 = winners[i][0]
-        # Shift runner pairings to ensure no winner plays a runner from their own group if possible
-        t2 = runners[(i + 1) % num_matches][0]
+        team1, group1 = t1_list[i]
+        team2, group2 = t2_list[i]
+        
+        # If they are from the same group and not BYEs, swap team2 with another candidate
+        if group1 and group2 and group1 == group2 and team1 != 'BYE' and team2 != 'BYE':
+            swapped = False
+            for j in range(num_matches):
+                if j == i:
+                    continue
+                cand_team, cand_group = t2_list[j]
+                # Check if swap is valid for both matches (i and j)
+                if cand_group != group1 and group2 != t1_list[j][1]:
+                    # Swap
+                    t2_list[i], t2_list[j] = t2_list[j], t2_list[i]
+                    swapped = True
+                    break
+            if not swapped:
+                # Fallback swap to any team from a different group
+                for j in range(num_matches):
+                    if j == i:
+                        continue
+                    cand_team, cand_group = t2_list[j]
+                    if cand_group != group1:
+                        t2_list[i], t2_list[j] = t2_list[j], t2_list[i]
+                        break
+
+    # 7. Generate first round matches
+    for i in range(num_matches):
+        t1 = t1_list[i][0]
+        t2 = t2_list[i][0]
 
         qf = {
             'id': str(uuid.uuid4()),
@@ -1245,6 +1328,49 @@ def handle_generate_knockout(tourney_id):
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, success=success_msg))
 
     return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Failed to save knockout fixtures database."))
+
+
+@app.route('/tournament/<tourney_id>/promote_team', methods=['POST'])
+def handle_promote_team(tourney_id):
+    """Toggle the promotion status of a team (restricted to creator/admin)."""
+    if 'user' not in session:
+        abort(401, "Unauthorized")
+
+    tournament = get_tournament_by_id(tourney_id)
+    if not tournament:
+        abort(404, "Tournament not found")
+
+    if session['user'] != tournament['creator'] and session['user'] != 'admin':
+        abort(403, "Forbidden")
+
+    # Cannot toggle promotion after knockout is generated
+    has_knockout = any(m.get('stage') in ['quarter', 'semi', 'final'] for m in tournament['matches'])
+    if has_knockout:
+        return {"error": "Cannot change promotion after knockout bracket is generated."}, 400
+
+    team_name = request.form.get('team_name')
+    promote = request.form.get('promote') == '1'
+    csrf_token = request.form.get('csrf_token')
+
+    if not csrf_token or csrf_token != session.get('csrf_token'):
+        return {"error": "Invalid CSRF token."}, 403
+
+    if not team_name or team_name not in tournament['teams']:
+        return {"error": "Invalid team name."}, 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tournament_teams SET is_promoted = %s WHERE tournament_id = %s AND team_name = %s",
+                (1 if promote else 0, tourney_id, team_name)
+            )
+        return {"success": True, "team_name": team_name, "promoted": promote}
+    except Exception as e:
+        logger.error(f"Error in handle_promote_team: {e}")
+        return {"error": "Database error."}, 500
+    finally:
+        conn.close()
 
 @app.route('/tournament/<tourney_id>/export/pdf')
 def export_fixtures_pdf(tourney_id):
@@ -1537,6 +1663,13 @@ def handle_start_tournament(tourney_id):
     except ValueError as e:
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=str(e)))
 
+    try:
+        promoted_per_group = int(request.form.get('promoted_per_group', 2))
+        if promoted_per_group < 1 or promoted_per_group > 8:
+            raise ValueError("Promoted per group must be between 1 and 8.")
+    except ValueError as e:
+        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=str(e)))
+
     fixture_type = request.form.get('fixture_type')
     if not fixture_type:
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Fixture Mode must be selected to start the tournament."))
@@ -1556,6 +1689,7 @@ def handle_start_tournament(tourney_id):
     tournament['num_sets'] = num_sets
     tournament['num_groups'] = num_groups
     tournament['teams_per_group'] = teams_per_group
+    tournament['promoted_per_group'] = promoted_per_group
     tournament['fixture_type'] = fixture_type
 
     # Generate fixtures
