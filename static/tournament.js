@@ -388,6 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Organizer control panel select/input dynamic validation
     const fixtureTypeDetail = document.getElementById('fixture-type-detail');
     const numGroupsDetail = document.getElementById('tourney-num-groups');
+    const promotedPerGroupDetail = document.getElementById('tourney-promoted-per-group');
 
     if (numGroupsDetail && fixtureTypeDetail) {
         const updateFixtureOptionsDetail = () => {
@@ -403,10 +404,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     opt.disabled = false;
                 });
             }
+
+            // Dynamically show/hide promoted_per_group based on fixture type
+            if (promotedPerGroupDetail) {
+                const isKnockout = (fixtureTypeDetail.value === 'groups_leagues');
+                const groupInputParent = promotedPerGroupDetail.closest('.input-group');
+                if (groupInputParent) {
+                    if (isKnockout) {
+                        groupInputParent.style.opacity = '1';
+                        promotedPerGroupDetail.disabled = false;
+                    } else {
+                        groupInputParent.style.opacity = '0.3';
+                        promotedPerGroupDetail.disabled = true;
+                    }
+                }
+            }
         };
 
         numGroupsDetail.addEventListener('change', updateFixtureOptionsDetail);
         numGroupsDetail.addEventListener('input', updateFixtureOptionsDetail);
+        fixtureTypeDetail.addEventListener('change', updateFixtureOptionsDetail);
         updateFixtureOptionsDetail();
     }
 
@@ -431,4 +448,38 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = getExportUrl('word');
         });
     }
+
+    // Toggle promotion status of a team (standings checks override) via Checkbox
+    document.querySelectorAll('.promote-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const teamName = cb.getAttribute('data-team-name');
+            const newPromoted = cb.checked;
+            
+            const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfTokenInput ? csrfTokenInput.value : '';
+            const tourneyId = window.location.pathname.split('/').filter(Boolean).pop();
+            
+            fetch(`/tournament/${tourneyId}/promote_team`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `team_name=${encodeURIComponent(teamName)}&promote=${newPromoted ? '1' : '0'}&csrf_token=${csrfToken}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    cb.checked = !newPromoted; // revert UI state on failure
+                    if (data.error) {
+                        alert(data.error);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error("Error toggling promotion status:", err);
+                cb.checked = !newPromoted; // revert UI state on failure
+                alert("Failed to update promotion status.");
+            });
+        });
+    });
 });
