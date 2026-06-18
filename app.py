@@ -1059,67 +1059,65 @@ def handle_submit_score(tourney_id):
         else:
             match_record['status'] = 'pending'
 
-    # Bracket progression trigger for quarter-final matches
-    if match_record.get('stage') == 'quarter':
-        quarter_matches = [m for m in tournament['matches'] if m.get('stage') == 'quarter']
-        if all(m['status'] == 'completed' for m in quarter_matches):
-            # Check if semi-finals have already been generated
-            semis = [m for m in tournament['matches'] if m.get('stage') == 'semi']
-            if not semis:
-                # SF 1: Winner QF 1 vs Winner QF 3
-                # SF 2: Winner QF 2 vs Winner QF 4
+    # Generic Bracket progression trigger
+    current_stage = match_record.get('stage')
+    stage_progression = {
+        'round_of_32': 'round_of_16',
+        'round_of_16': 'quarter',
+        'quarter': 'semi',
+        'semi': 'final'
+    }
+
+    if current_stage in stage_progression:
+        next_stage = stage_progression[current_stage]
+        current_stage_matches = [m for m in tournament['matches'] if m.get('stage') == current_stage]
+        
+        if all(m['status'] == 'completed' for m in current_stage_matches):
+            # Check if next stage matches have already been generated
+            next_stage_matches = [m for m in tournament['matches'] if m.get('stage') == next_stage]
+            if not next_stage_matches:
                 w = []
-                for qm in quarter_matches:
-                    winner = qm['team1'] if qm['score1'] > qm['score2'] else qm['team2']
+                for m in current_stage_matches:
+                    winner = m['team1'] if (m.get('score1') or 0) > (m.get('score2') or 0) else m['team2']
                     w.append(winner)
                 
-                sf1 = {
-                    'id': str(uuid.uuid4()),
-                    'round': 1,
-                    'group': None,
-                    'stage': 'semi',
-                    'team1': w[0],
-                    'team2': w[2],
-                    'score1': None,
-                    'score2': None,
-                    'status': 'pending'
-                }
-                sf2 = {
-                    'id': str(uuid.uuid4()),
-                    'round': 1,
-                    'group': None,
-                    'stage': 'semi',
-                    'team1': w[1],
-                    'team2': w[3],
-                    'score1': None,
-                    'score2': None,
-                    'status': 'pending'
-                }
-                tournament['matches'].append(sf1)
-                tournament['matches'].append(sf2)
-
-    # Bracket progression trigger for semi-final matches
-    if match_record.get('stage') == 'semi':
-        semi_matches = [m for m in tournament['matches'] if m.get('stage') == 'semi']
-        if all(m['status'] == 'completed' for m in semi_matches):
-            # Check if finals have already been generated
-            finals = [m for m in tournament['matches'] if m.get('stage') == 'final']
-            if not finals:
-                winner1 = semi_matches[0]['team1'] if semi_matches[0]['score1'] > semi_matches[0]['score2'] else semi_matches[0]['team2']
-                winner2 = semi_matches[1]['team1'] if semi_matches[1]['score1'] > semi_matches[1]['score2'] else semi_matches[1]['team2']
-                
-                final_match = {
-                    'id': str(uuid.uuid4()),
-                    'round': 1,
-                    'group': None,
-                    'stage': 'final',
-                    'team1': winner1,
-                    'team2': winner2,
-                    'score1': None,
-                    'score2': None,
-                    'status': 'pending'
-                }
-                tournament['matches'].append(final_match)
+                # Pair the winners to generate the next stage matches
+                num_next_matches = len(w) // 2
+                for k in range(num_next_matches):
+                    # Maintain original cross-pairing compatibility for Quarter-finals to Semi-finals
+                    if current_stage == 'quarter' and len(w) == 4:
+                        t1 = w[0] if k == 0 else w[1]
+                        t2 = w[2] if k == 0 else w[3]
+                    else:
+                        t1 = w[2 * k]
+                        t2 = w[2 * k + 1]
+                        
+                    next_match = {
+                        'id': str(uuid.uuid4()),
+                        'round': 1,
+                        'group': None,
+                        'stage': next_stage,
+                        'team1': t1,
+                        'team2': t2,
+                        'score1': None,
+                        'score2': None,
+                        'status': 'pending'
+                    }
+                    
+                    # Auto-complete BYE matches
+                    if t1 == 'BYE' or t2 == 'BYE':
+                        next_match['status'] = 'completed'
+                        if t1 == 'BYE' and t2 == 'BYE':
+                            next_match['score1'] = 0
+                            next_match['score2'] = 0
+                        elif t1 == 'BYE':
+                            next_match['score1'] = 0
+                            next_match['score2'] = 1
+                        else:
+                            next_match['score1'] = 1
+                            next_match['score2'] = 0
+                            
+                    tournament['matches'].append(next_match)
 
     # Determine if tournament is completed and update status based on fixture type
     fixture_type = tournament.get('fixture_type')
@@ -1167,98 +1165,68 @@ def handle_generate_knockout(tourney_id):
 
     num_groups = tournament.get('num_groups', 2)
 
-    if num_groups == 2:
-        group_a_standings = calculate_standings(tournament, 'A')
-        group_b_standings = calculate_standings(tournament, 'B')
+    # 1. Collect all winners and runners from all groups
+    winners = []
+    runners = []
+    for g_idx in range(num_groups):
+        group_name = chr(65 + g_idx)
+        group_standings = calculate_standings(tournament, group_name)
+        
+        w_team = group_standings[0]['team'] if len(group_standings) > 0 else 'BYE'
+        r_team = group_standings[1]['team'] if len(group_standings) > 1 else 'BYE'
+        
+        winners.append((w_team, group_name))
+        runners.append((r_team, group_name))
 
-        if len(group_a_standings) < 2 or len(group_b_standings) < 2:
-            return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Insufficient number of teams in group standings."))
+    # 2. Find the next power of 2 size for the bracket
+    p = 2
+    while p < (num_groups * 2):
+        p *= 2
+    num_matches = p // 2
 
-        winner_a = group_a_standings[0]['team']
-        runner_a = group_a_standings[1]['team']
-        winner_b = group_b_standings[0]['team']
-        runner_b = group_b_standings[1]['team']
+    # 3. Pad both winners and runners lists with 'BYE' to ensure size is num_matches
+    while len(winners) < num_matches:
+        winners.append(('BYE', None))
+    while len(runners) < num_matches:
+        runners.append(('BYE', None))
 
-        sf1 = {
+    # 4. Determine stage name based on bracket size p
+    stage_names = {2: 'final', 4: 'semi', 8: 'quarter', 16: 'round_of_16', 32: 'round_of_32'}
+    stage_name = stage_names.get(p, f"round_of_{p}")
+    success_msg = f"Knockout {stage_name.replace('_', ' ')} fixtures generated!"
+
+    # 5. Generate first round matches pairing winners with runners
+    for i in range(num_matches):
+        t1 = winners[i][0]
+        # Shift runner pairings to ensure no winner plays a runner from their own group if possible
+        t2 = runners[(i + 1) % num_matches][0]
+
+        qf = {
             'id': str(uuid.uuid4()),
             'round': 1,
             'group': None,
-            'stage': 'semi',
-            'team1': winner_a,
-            'team2': runner_b,
+            'stage': stage_name,
+            'team1': t1,
+            'team2': t2,
             'score1': None,
             'score2': None,
             'status': 'pending'
         }
 
-        sf2 = {
-            'id': str(uuid.uuid4()),
-            'round': 1,
-            'group': None,
-            'stage': 'semi',
-            'team1': winner_b,
-            'team2': runner_a,
-            'score1': None,
-            'score2': None,
-            'status': 'pending'
-        }
+        # Auto-complete BYE matches
+        if t1 == 'BYE' or t2 == 'BYE':
+            qf['status'] = 'completed'
+            if t1 == 'BYE' and t2 == 'BYE':
+                qf['score1'] = 0
+                qf['score2'] = 0
+            elif t1 == 'BYE':
+                qf['score1'] = 0
+                qf['score2'] = 1
+            else:
+                qf['score1'] = 1
+                qf['score2'] = 0
 
-        tournament['matches'].append(sf1)
-        tournament['matches'].append(sf2)
-        success_msg = "Knockout semi-final fixtures generated!"
-
-    elif num_groups == 4:
-        import random
-        group_a_standings = calculate_standings(tournament, 'A')
-        group_b_standings = calculate_standings(tournament, 'B')
-        group_c_standings = calculate_standings(tournament, 'C')
-        group_d_standings = calculate_standings(tournament, 'D')
-
-        if len(group_a_standings) < 2 or len(group_b_standings) < 2 or len(group_c_standings) < 2 or len(group_d_standings) < 2:
-            return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Insufficient number of teams in group standings."))
-
-        # Structure toppers and runners-up with group origins
-        winners = [
-            {'team': group_a_standings[0]['team'], 'group': 'A'},
-            {'team': group_b_standings[0]['team'], 'group': 'B'},
-            {'team': group_c_standings[0]['team'], 'group': 'C'},
-            {'team': group_d_standings[0]['team'], 'group': 'D'}
-        ]
-        runners = [
-            {'team': group_a_standings[1]['team'], 'group': 'A'},
-            {'team': group_b_standings[1]['team'], 'group': 'B'},
-            {'team': group_c_standings[1]['team'], 'group': 'C'},
-            {'team': group_d_standings[1]['team'], 'group': 'D'}
-        ]
-
-        # Shuffle winners so they get distributed randomly across QF 1-4
-        random.shuffle(winners)
-
-        # Shuffle runners and verify no winner plays a runner from the same group
-        valid_shuffle = False
-        attempts = 0
-        while not valid_shuffle and attempts < 1000:
-            attempts += 1
-            random.shuffle(runners)
-            if all(winners[i]['group'] != runners[i]['group'] for i in range(4)):
-                valid_shuffle = True
-
-        for i in range(4):
-            qf = {
-                'id': str(uuid.uuid4()),
-                'round': 1,
-                'group': None,
-                'stage': 'quarter',
-                'team1': winners[i]['team'],
-                'team2': runners[i]['team'],
-                'score1': None,
-                'score2': None,
-                'status': 'pending'
-            }
-            tournament['matches'].append(qf)
-        success_msg = "Knockout quarter-final fixtures generated!"
-    else:
-        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Fixture type or group count does not support knockouts."))
+        tournament['matches'].append(qf)
 
     # Determine if tournament is completed and update status based on fixture type
     fixture_type = tournament.get('fixture_type')
@@ -1277,6 +1245,97 @@ def handle_generate_knockout(tourney_id):
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, success=success_msg))
 
     return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Failed to save knockout fixtures database."))
+
+@app.route('/tournament/<tourney_id>/export/pdf')
+def export_fixtures_pdf(tourney_id):
+    """Render print-friendly fixtures page for PDF saving with optional stage filtering."""
+    if 'user' not in session:
+        return redirect(url_for('login_page', error="Please login first."))
+
+    tournament = get_tournament_by_id(tourney_id)
+    if not tournament:
+        abort(404, "Tournament not found.")
+
+    if not tournament.get('matches'):
+        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Fixtures have not been generated yet."))
+
+    stage = request.args.get('stage')
+    filtered_matches = tournament['matches']
+    stage_title = "Fixture Schedule"
+    if stage:
+        if stage == 'group':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') in ['group', 'league']]
+            stage_title = "Group Stage Fixtures"
+        elif stage == 'knockout':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') in ['quarter', 'semi', 'final']]
+            stage_title = "Knockout Stage Fixtures"
+        elif stage == 'quarter':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') == 'quarter']
+            stage_title = "Quarter-final Fixtures"
+        elif stage == 'semi':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') == 'semi']
+            stage_title = "Semi-final Fixtures"
+        elif stage == 'final':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') == 'final']
+            stage_title = "Final Fixtures"
+
+    if not filtered_matches:
+        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=f"No matches generated for {stage_title} yet."))
+
+    tournament_copy = dict(tournament)
+    tournament_copy['matches'] = filtered_matches
+
+    return render_template('export_fixtures.html', tournament=tournament_copy, export_type='pdf', stage_title=stage_title)
+
+
+@app.route('/tournament/<tourney_id>/export/word')
+def export_fixtures_word(tourney_id):
+    """Download fixtures list as a Word document with optional stage filtering."""
+    if 'user' not in session:
+        return redirect(url_for('login_page', error="Please login first."))
+
+    tournament = get_tournament_by_id(tourney_id)
+    if not tournament:
+        abort(404, "Tournament not found.")
+
+    if not tournament.get('matches'):
+        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Fixtures have not been generated yet."))
+
+    stage = request.args.get('stage')
+    filtered_matches = tournament['matches']
+    stage_title = "Fixture Schedule"
+    if stage:
+        if stage == 'group':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') in ['group', 'league']]
+            stage_title = "Group Stage Fixtures"
+        elif stage == 'knockout':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') in ['quarter', 'semi', 'final']]
+            stage_title = "Knockout Stage Fixtures"
+        elif stage == 'quarter':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') == 'quarter']
+            stage_title = "Quarter-final Fixtures"
+        elif stage == 'semi':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') == 'semi']
+            stage_title = "Semi-final Fixtures"
+        elif stage == 'final':
+            filtered_matches = [m for m in filtered_matches if m.get('stage') == 'final']
+            stage_title = "Final Fixtures"
+
+    if not filtered_matches:
+        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=f"No matches generated for {stage_title} yet."))
+
+    tournament_copy = dict(tournament)
+    tournament_copy['matches'] = filtered_matches
+
+    from flask import make_response
+    html_content = render_template('export_fixtures.html', tournament=tournament_copy, export_type='word', stage_title=stage_title)
+    
+    response = make_response(html_content)
+    safe_name = "".join([c if c.isalnum() else "_" for c in tournament['name']])
+    stage_suffix = f"_{stage}" if stage else ""
+    response.headers['Content-Disposition'] = f'attachment; filename="{safe_name}_fixtures{stage_suffix}.doc"'
+    response.headers['Content-Type'] = 'application/msword'
+    return response
 
 @app.route('/tournament/<tourney_id>/delete', methods=['POST'])
 def handle_delete_tournament(tourney_id):
@@ -1466,15 +1525,15 @@ def handle_start_tournament(tourney_id):
 
     try:
         num_groups = int(request.form.get('num_groups', 2))
-        if num_groups not in [1, 2, 4]:
-            raise ValueError("Number of groups must be 1, 2, or 4.")
+        if num_groups < 1 or num_groups > 16:
+            raise ValueError("Number of groups must be between 1 and 16.")
     except ValueError as e:
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=str(e)))
 
     try:
         teams_per_group = int(request.form.get('teams_per_group', 4))
-        if teams_per_group < 2 or teams_per_group > 16:
-            raise ValueError("Teams per group must be between 2 and 16.")
+        if teams_per_group < 2 or teams_per_group > 32:
+            raise ValueError("Teams per group must be between 2 and 32.")
     except ValueError as e:
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=str(e)))
 
@@ -1491,17 +1550,6 @@ def handle_start_tournament(tourney_id):
     total_capacity = num_groups * teams_per_group
     if len(teams) > total_capacity:
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=f"The number of registered teams ({len(teams)}) exceeds the configured total capacity ({total_capacity}). Please adjust the number of groups or teams per group."))
-
-    if fixture_type in ['groups', 'groups_leagues']:
-        min_required_teams = num_groups * 2
-        if len(teams) < min_required_teams:
-            return redirect(
-                url_for(
-                    'tournament_details_page',
-                    tourney_id=tourney_id,
-                    error=f"A {num_groups}-group tournament requires at least {min_required_teams} registered teams (minimum 2 per group) to generate fixtures."
-                )
-            )
 
     # Save setup configurations to tournament record
     tournament['winning_point'] = winning_point
