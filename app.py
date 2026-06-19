@@ -1719,6 +1719,48 @@ def handle_start_tournament(tourney_id):
 
     return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Failed to save tournament startup."))
 
+@app.route('/tournament/<tourney_id>/reset_fixtures', methods=['POST'])
+def handle_reset_fixtures(tourney_id):
+    """Delete all generated fixtures/matches, groups, promoted flags, and set tournament status back to active (creator/admin only)."""
+    if 'user' not in session:
+        return redirect(url_for('login_page', error="Please login first."))
+
+    tournament = get_tournament_by_id(tourney_id)
+
+    if not tournament:
+        return redirect(url_for('dashboard_page', error="Tournament not found."))
+
+    # Role Authorization Enforcement
+    if session['user'] != tournament['creator'] and session['user'] != 'admin':
+        abort(403, "Forbidden. Only the organizer who created the tournament or admin can reset fixtures.")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Delete match scores explicitly first to avoid constraint issues, then matches
+            cursor.execute("DELETE FROM match_scores WHERE match_id IN (SELECT id FROM matches WHERE tournament_id = %s)", (tourney_id,))
+            cursor.execute("DELETE FROM matches WHERE tournament_id = %s", (tourney_id,))
+            
+            # Delete group assignments
+            cursor.execute("DELETE FROM tournament_groups WHERE tournament_id = %s", (tourney_id,))
+            
+            # Reset promoted status for teams
+            cursor.execute("UPDATE tournament_teams SET is_promoted = 0 WHERE tournament_id = %s", (tourney_id,))
+            
+            # Reset tournament metadata back to setup state (fixture_type = NULL, status = active, open_registration = 1)
+            cursor.execute("""
+                UPDATE tournaments 
+                SET fixture_type = NULL, status = 'active', open_registration = 1 
+                WHERE id = %s
+            """, (tourney_id,))
+            
+        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, success="Tournament fixtures successfully reset. You can now re-configure and start the tournament again!"))
+    except Exception as e:
+        logger.error(f"Database error in handle_reset_fixtures: {e}")
+        return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Failed to reset tournament fixtures."))
+    finally:
+        conn.close()
+
 @app.route('/logout', methods=['POST'])
 def handle_logout():
     """Clear session data and sign out."""
