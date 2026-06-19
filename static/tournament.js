@@ -45,6 +45,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Reset Fixtures Confirmation Modal Control
+    const resetTrigger = document.getElementById('btn-reset-trigger');
+    const resetModal = document.getElementById('reset-confirm-modal');
+    const closeResetModalBtn = document.getElementById('close-reset-modal-btn');
+    const cancelResetBtn = document.getElementById('cancel-reset-btn');
+
+    if (resetModal) {
+        if (resetTrigger) {
+            resetTrigger.addEventListener('click', () => {
+                resetModal.style.display = 'flex';
+            });
+        }
+
+        const hideResetModal = () => {
+            resetModal.style.display = 'none';
+        };
+
+        if (closeResetModalBtn) {
+            closeResetModalBtn.addEventListener('click', hideResetModal);
+        }
+
+        if (cancelResetBtn) {
+            cancelResetBtn.addEventListener('click', hideResetModal);
+        }
+
+        resetModal.addEventListener('click', (e) => {
+            if (e.target === resetModal) {
+                hideResetModal();
+            }
+        });
+    }
+
     // Matches & Fixtures Sub-tabs Filter Logic
     const filterBar = document.getElementById('matches-filter-bar');
     const matchCards = document.querySelectorAll('.match-card');

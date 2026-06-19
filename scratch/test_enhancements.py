@@ -272,6 +272,52 @@ def run_tests():
     # Export routes verification complete
     print("Export routes verification complete (all passed).")
 
+    # 7.8. Testing Reset Fixtures
+    print("\n7.8. Testing Reset Fixtures endpoint...")
+    reset_data = {
+        'csrf_token': csrf_token
+    }
+    resp = client.post(f'/tournament/{tourney_id}/reset_fixtures', data=reset_data, follow_redirects=True)
+    assert resp.status_code == 200
+    print("Reset fixtures POST request successful.")
+
+    # Query DB to assert clean state
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Check tournament metadata
+            cursor.execute("SELECT fixture_type, status, open_registration FROM tournaments WHERE id = %s", (tourney_id,))
+            tourney = cursor.fetchone()
+            print(f"Tournament state after reset: fixture_type={tourney['fixture_type']}, status={tourney['status']}, open_registration={tourney['open_registration']}")
+            assert tourney['fixture_type'] is None
+            assert tourney['status'] == 'active'
+            assert tourney['open_registration'] == 1
+
+            # Check matches are deleted
+            cursor.execute("SELECT COUNT(*) as cnt FROM matches WHERE tournament_id = %s", (tourney_id,))
+            match_count = cursor.fetchone()['cnt']
+            print(f"Match count after reset: {match_count}")
+            assert match_count == 0
+
+            # Check group assignments are deleted
+            cursor.execute("SELECT COUNT(*) as cnt FROM tournament_groups WHERE tournament_id = %s", (tourney_id,))
+            group_count = cursor.fetchone()['cnt']
+            print(f"Group count after reset: {group_count}")
+            assert group_count == 0
+
+            # Check team registrations are preserved but is_promoted is reset
+            cursor.execute("SELECT team_name, is_promoted FROM tournament_teams WHERE tournament_id = %s", (tourney_id,))
+            teams_rows = cursor.fetchall()
+            print(f"Registered teams remaining: {len(teams_rows)}")
+            assert len(teams_rows) == 8
+            for row in teams_rows:
+                assert row['is_promoted'] == 0
+            print("Verified: all 8 teams preserved and is_promoted reset to 0.")
+    finally:
+        conn.close()
+
+    print("Reset fixtures endpoint verification complete (all assertions passed).")
+
     # Clean up test tournament
     print("\n8. Deleting test tournament...")
     delete_data = {
