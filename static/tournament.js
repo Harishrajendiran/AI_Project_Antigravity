@@ -89,16 +89,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 return { id: `group-${group}`, label: `Group ${group}` };
             }
             if (stage === 'league') {
-                return { id: 'league', label: 'League Matches' };
+                return { id: 'league', label: 'Group' };
+            }
+            if (stage === 'round_of_32' || stage === 'round_of_16') {
+                return { id: 'knockout', label: 'Knockout' };
             }
             if (stage === 'quarter') {
-                return { id: 'quarter', label: 'Quarter-finals' };
+                return { id: 'quarter', label: 'Quater finals' };
             }
             if (stage === 'semi') {
-                return { id: 'semi', label: 'Semi-finals' };
+                return { id: 'semi', label: 'semi' };
             }
             if (stage === 'final') {
-                return { id: 'final', label: 'Finals' };
+                return { id: 'final', label: 'finals' };
             }
             return { id: stage, label: stage.charAt(0).toUpperCase() + stage.slice(1) };
         }
@@ -115,20 +118,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (categoriesMap.size > 0) {
-            const catOrder = ['group-A', 'group-B', 'group-C', 'group-D', 'league', 'quarter', 'semi', 'final'];
+            function getPriority(id) {
+                if (id.startsWith('group-')) return 0;
+                if (id === 'league') return 1;
+                if (id === 'knockout') return 2;
+                if (id === 'quarter') return 3;
+                if (id === 'semi') return 4;
+                if (id === 'final') return 5;
+                return 6;
+            }
+
             const sortedKeys = Array.from(categoriesMap.keys()).sort((a, b) => {
-                const specificIdxA = catOrder.indexOf(a);
-                const specificIdxB = catOrder.indexOf(b);
-                
-                if (specificIdxA !== -1 && specificIdxB !== -1) {
-                    return specificIdxA - specificIdxB;
+                const pA = getPriority(a);
+                const pB = getPriority(b);
+                if (pA !== pB) {
+                    return pA - pB;
                 }
-                if (a.startsWith('group-') && b.startsWith('group-')) {
-                    return a.localeCompare(b);
-                }
-                const valA = specificIdxA !== -1 ? specificIdxA : 99;
-                const valB = specificIdxB !== -1 ? specificIdxB : 99;
-                return valA - valB;
+                return a.localeCompare(b);
             });
 
             sortedKeys.forEach(catId => {

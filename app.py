@@ -334,8 +334,14 @@ def get_tournament_by_id(tourney_id):
             
             # Sort matches systematically: Group stage (Group A, B, C...) -> Round -> Knockouts
             def match_sort_key(m):
-                stage_order = {'group': 0, 'league': 0, 'quarter': 1, 'semi': 2, 'final': 3}
-                stage_priority = stage_order.get(m.get('stage'), 4)
+                stage_order = {
+                    'group': 0, 'league': 0,
+                    'round_of_32': 1, 'round_of_16': 2,
+                    'quarter': 3,
+                    'semi': 4,
+                    'final': 5
+                }
+                stage_priority = stage_order.get(m.get('stage'), 6)
                 group = m.get('group_name') or ""
                 round_num = m.get('round') or 0
                 return (stage_priority, group, round_num, m.get('team1', ''), m.get('team2', ''))
@@ -348,7 +354,7 @@ def get_tournament_by_id(tourney_id):
                 group_matches = [m for m in matches if m.get('stage') == 'group']
                 if group_matches and all(m['status'] == 'completed' for m in group_matches):
                     # Check if any knockout matches are generated yet (if so, do not overwrite)
-                    has_knockout = any(m.get('stage') in ['quarter', 'semi', 'final'] for m in matches)
+                    has_knockout = any(m.get('stage') in ['round_of_32', 'round_of_16', 'quarter', 'semi', 'final'] for m in matches)
                     if not has_knockout:
                         promoted_per_group = int(t.get('promoted_per_group', 2))
                         auto_promoted = []
@@ -373,6 +379,7 @@ def get_tournament_by_id(tourney_id):
 def save_tournament(t):
     conn = get_db_connection()
     try:
+        conn.autocommit(False)
         with conn.cursor() as cursor:
             cursor.execute("""
                 INSERT INTO tournaments (
@@ -438,8 +445,10 @@ def save_tournament(t):
                         m['id'], idx + 1, set_score.get('team1'), set_score.get('team2')
                     ))
             
+            conn.commit()
         return True
     except Exception as e:
+        conn.rollback()
         logger.error(f"Database error in save_tournament: {e}")
         return False
     finally:
@@ -545,7 +554,7 @@ def calculate_standings(tournament, group=None):
     standings = {t: {'team': t, 'played': 0, 'won': 0, 'lost': 0, 'sets_won': 0, 'sets_lost': 0, 'point_diff': 0, 'points': 0} for t in teams}
     
     for m in tournament.get('matches', []):
-        if m.get('stage') in ['semi', 'final']:
+        if m.get('stage') not in ['group', 'league']:
             continue # Knockout matches do not count toward group/league standings table
         if group and (m.get('group') != group):
             continue
@@ -942,7 +951,7 @@ def tournament_details_page(tourney_id):
             group_matches = [m for m in tournament['matches'] if m.get('stage') == 'group']
             if group_matches:
                 group_stage_done = all(m['status'] == 'completed' for m in group_matches)
-            knockout_generated = any(m.get('stage') in ['quarter', 'semi', 'final'] for m in tournament['matches'])
+            knockout_generated = any(m.get('stage') in ['round_of_32', 'round_of_16', 'quarter', 'semi', 'final'] for m in tournament['matches'])
 
     error = request.args.get('error')
     success = request.args.get('success')
@@ -1202,7 +1211,7 @@ def handle_generate_knockout(tourney_id):
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Please complete all group stage matches first."))
 
     # Check duplicate knockout creation
-    if any(m.get('stage') in ['quarter', 'semi', 'final'] for m in tournament['matches']):
+    if any(m.get('stage') in ['round_of_32', 'round_of_16', 'quarter', 'semi', 'final'] for m in tournament['matches']):
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error="Knockout brackets are already generated."))
 
     num_groups = tournament.get('num_groups', 2)
@@ -1344,7 +1353,7 @@ def handle_promote_team(tourney_id):
         abort(403, "Forbidden")
 
     # Cannot toggle promotion after knockout is generated
-    has_knockout = any(m.get('stage') in ['quarter', 'semi', 'final'] for m in tournament['matches'])
+    has_knockout = any(m.get('stage') in ['round_of_32', 'round_of_16', 'quarter', 'semi', 'final'] for m in tournament['matches'])
     if has_knockout:
         return {"error": "Cannot change promotion after knockout bracket is generated."}, 400
 
@@ -1391,19 +1400,19 @@ def export_fixtures_pdf(tourney_id):
     if stage:
         if stage == 'group':
             filtered_matches = [m for m in filtered_matches if m.get('stage') in ['group', 'league']]
-            stage_title = "Group Stage Fixtures"
+            stage_title = "Group"
         elif stage == 'knockout':
-            filtered_matches = [m for m in filtered_matches if m.get('stage') in ['quarter', 'semi', 'final']]
-            stage_title = "Knockout Stage Fixtures"
+            filtered_matches = [m for m in filtered_matches if m.get('stage') in ['round_of_32', 'round_of_16']]
+            stage_title = "Knockout"
         elif stage == 'quarter':
             filtered_matches = [m for m in filtered_matches if m.get('stage') == 'quarter']
-            stage_title = "Quarter-final Fixtures"
+            stage_title = "Quater finals"
         elif stage == 'semi':
             filtered_matches = [m for m in filtered_matches if m.get('stage') == 'semi']
-            stage_title = "Semi-final Fixtures"
+            stage_title = "semi"
         elif stage == 'final':
             filtered_matches = [m for m in filtered_matches if m.get('stage') == 'final']
-            stage_title = "Final Fixtures"
+            stage_title = "finals"
 
     if not filtered_matches:
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=f"No matches generated for {stage_title} yet."))
@@ -1433,19 +1442,19 @@ def export_fixtures_word(tourney_id):
     if stage:
         if stage == 'group':
             filtered_matches = [m for m in filtered_matches if m.get('stage') in ['group', 'league']]
-            stage_title = "Group Stage Fixtures"
+            stage_title = "Group"
         elif stage == 'knockout':
-            filtered_matches = [m for m in filtered_matches if m.get('stage') in ['quarter', 'semi', 'final']]
-            stage_title = "Knockout Stage Fixtures"
+            filtered_matches = [m for m in filtered_matches if m.get('stage') in ['round_of_32', 'round_of_16']]
+            stage_title = "Knockout"
         elif stage == 'quarter':
             filtered_matches = [m for m in filtered_matches if m.get('stage') == 'quarter']
-            stage_title = "Quarter-final Fixtures"
+            stage_title = "Quater finals"
         elif stage == 'semi':
             filtered_matches = [m for m in filtered_matches if m.get('stage') == 'semi']
-            stage_title = "Semi-final Fixtures"
+            stage_title = "semi"
         elif stage == 'final':
             filtered_matches = [m for m in filtered_matches if m.get('stage') == 'final']
-            stage_title = "Final Fixtures"
+            stage_title = "finals"
 
     if not filtered_matches:
         return redirect(url_for('tournament_details_page', tourney_id=tourney_id, error=f"No matches generated for {stage_title} yet."))

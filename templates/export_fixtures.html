@@ -434,11 +434,12 @@
                 <tr>
                     <td style="text-align: center; font-weight: bold;">{{ loop.index }}</td>
                     <td>
-                        {% if m.stage == 'quarter' %}Quarter-final
-                        {% elif m.stage == 'semi' %}Semi-final
-                        {% elif m.stage == 'final' %}Final
+                        {% if m.stage == 'round_of_32' or m.stage == 'round_of_16' %}Knockout
+                        {% elif m.stage == 'quarter' %}Quater finals
+                        {% elif m.stage == 'semi' %}semi
+                        {% elif m.stage == 'final' %}finals
                         {% else %}
-                            {% if m.group %}Group {{ m.group }} | {% endif %}Round {{ m.round }}
+                            Group{% if m.group %} {{ m.group }}{% endif %}{% if m.round %} | Round {{ m.round }}{% endif %}
                         {% endif %}
                     </td>
                     <td style="text-align: right; font-weight: 500;">
