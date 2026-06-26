@@ -223,31 +223,28 @@
                 <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Export Stage:</span>
                 <select id="export-stage-select" style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 6px 12px; color: var(--text-main); font-size: 13px; outline: none; cursor: pointer; font-family: inherit; transition: var(--transition-smooth);">
                     <option value="">Full Tournament</option>
-                    {% if tournament.fixture_type == 'leagues' %}
-                        <option value="group">League Stage</option>
-                    {% else %}
-                        <option value="group">Group Stage</option>
-                    {% endif %}
+                    <option value="group">Group</option>
                     
-                    {% set ns = namespace(has_quarter=false, has_semi=false, has_final=false, has_knockout=false) %}
+                    {% set ns = namespace(has_quarter=false, has_semi=false, has_final=false, has_knockout_stage=false) %}
                     {% for m in tournament.matches %}
-                        {% if m.stage == 'quarter' %}{% set ns.has_quarter = true %}{% set ns.has_knockout = true %}
-                        {% elif m.stage == 'semi' %}{% set ns.has_semi = true %}{% set ns.has_knockout = true %}
-                        {% elif m.stage == 'final' %}{% set ns.has_final = true %}{% set ns.has_knockout = true %}
+                        {% if m.stage == 'round_of_32' or m.stage == 'round_of_16' %}{% set ns.has_knockout_stage = true %}
+                        {% elif m.stage == 'quarter' %}{% set ns.has_quarter = true %}
+                        {% elif m.stage == 'semi' %}{% set ns.has_semi = true %}
+                        {% elif m.stage == 'final' %}{% set ns.has_final = true %}
                         {% endif %}
                     {% endfor %}
 
+                    {% if ns.has_knockout_stage %}
+                        <option value="knockout">Knockout</option>
+                    {% endif %}
                     {% if ns.has_quarter %}
-                        <option value="quarter">Quarter-finals</option>
+                        <option value="quarter">Quater finals</option>
                     {% endif %}
                     {% if ns.has_semi %}
-                        <option value="semi">Semi-finals</option>
+                        <option value="semi">semi</option>
                     {% endif %}
                     {% if ns.has_final %}
-                        <option value="final">Finals</option>
-                    {% endif %}
-                    {% if ns.has_knockout %}
-                        <option value="knockout">All Knockouts</option>
+                        <option value="final">finals</option>
                     {% endif %}
                 </select>
                 <button type="button" id="btn-export-pdf" class="btn btn-secondary" style="font-size: 13px; padding: 8px 14px; border-radius: 8px; background: rgba(0, 240, 255, 0.1); border: 1px solid var(--primary); color: var(--primary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
@@ -386,15 +383,70 @@
                     {% endif %}
                 {% else %}
                     <!-- Display Knockout Brackets -->
+                    {% set has_r32 = tournament.matches | selectattr("stage", "equalto", "round_of_32") | list | length > 0 %}
+                    {% set has_r16 = tournament.matches | selectattr("stage", "equalto", "round_of_16") | list | length > 0 %}
                     {% set has_quarters = tournament.matches | selectattr("stage", "equalto", "quarter") | list | length > 0 %}
-                    <div class="knockout-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax({% if has_quarters %}240px{% else %}280px{% endif %}, 1fr)); gap: 20px;">
+                    {% set has_semis = tournament.matches | selectattr("stage", "equalto", "semi") | list | length > 0 %}
+                    {% set has_finals = tournament.matches | selectattr("stage", "equalto", "final") | list | length > 0 %}
+                    
+                    {% set col_count = 0 %}
+                    {% if has_r32 %}{% set col_count = col_count + 1 %}{% endif %}
+                    {% if has_r16 %}{% set col_count = col_count + 1 %}{% endif %}
+                    {% if has_quarters %}{% set col_count = col_count + 1 %}{% endif %}
+                    {% if has_semis %}{% set col_count = col_count + 1 %}{% endif %}
+                    {% if has_finals %}{% set col_count = col_count + 1 %}{% endif %}
+
+                    <div class="knockout-grid" style="display: grid; grid-template-columns: repeat({{ col_count if col_count > 0 else 1 }}, 1fr); gap: 20px; overflow-x: auto; padding-bottom: 10px;">
+                        
+                        {% if has_r32 %}
+                        <div>
+                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Knockout</h3>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                {% for m in tournament.matches if m.stage == 'round_of_32' %}
+                                <div class="match-bracket-card" style="padding: 12px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); border-radius: 12px;">
+                                    <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px;">Knockout {{ loop.index }}</div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 500;">
+                                        <span>{{ m.team1 }}</span>
+                                        <span style="color: var(--secondary);">{{ m.score1 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 500; margin-top: 4px;">
+                                        <span>{{ m.team2 }}</span>
+                                        <span style="color: var(--secondary);">{{ m.score2 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if has_r16 %}
+                        <div>
+                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Knockout</h3>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                {% for m in tournament.matches if m.stage == 'round_of_16' %}
+                                <div class="match-bracket-card" style="padding: 12px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); border-radius: 12px;">
+                                    <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px;">Knockout {{ loop.index }}</div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 500;">
+                                        <span>{{ m.team1 }}</span>
+                                        <span style="color: var(--secondary);">{{ m.score1 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 500; margin-top: 4px;">
+                                        <span>{{ m.team2 }}</span>
+                                        <span style="color: var(--secondary);">{{ m.score2 if m.status == 'completed' else '-' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
                         {% if has_quarters %}
                         <div>
-                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Quarter-finals</h3>
+                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Quater finals</h3>
                             <div style="display: flex; flex-direction: column; gap: 12px;">
                                 {% for m in tournament.matches if m.stage == 'quarter' %}
                                 <div class="match-bracket-card" style="padding: 12px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); border-radius: 12px;">
-                                    <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px;">Quarter-final {{ loop.index }}</div>
+                                    <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px;">Quater finals {{ loop.index }}</div>
                                     <div style="display: flex; justify-content: space-between; font-weight: 500;">
                                         <span>{{ m.team1 }}</span>
                                         <span style="color: var(--secondary);">{{ m.score1 if m.status == 'completed' else '-' }}</span>
@@ -409,12 +461,13 @@
                         </div>
                         {% endif %}
                         
+                        {% if has_semis %}
                         <div>
-                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Semi-finals</h3>
+                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">semi</h3>
                             <div style="display: flex; flex-direction: column; gap: 12px;">
                                 {% for m in tournament.matches if m.stage == 'semi' %}
                                 <div class="match-bracket-card" style="padding: 12px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); border-radius: 12px;">
-                                    <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px;">Semi-final {{ loop.index }}</div>
+                                    <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px;">semi {{ loop.index }}</div>
                                     <div style="display: flex; justify-content: space-between; font-weight: 500;">
                                         <span>{{ m.team1 }}</span>
                                         <span style="color: var(--secondary);">{{ m.score1 if m.status == 'completed' else '-' }}</span>
@@ -427,8 +480,11 @@
                                 {% endfor %}
                             </div>
                         </div>
+                        {% endif %}
+
+                        {% if has_finals %}
                         <div>
-                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Finals</h3>
+                            <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">finals</h3>
                             <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
                                 {% for m in tournament.matches if m.stage == 'final' %}
                                 <div class="match-bracket-card" style="padding: 16px; border: 2px solid var(--primary); background: rgba(0, 240, 255, 0.03); border-radius: 12px; box-shadow: 0 0 15px var(--primary-glow);">
@@ -450,6 +506,7 @@
                                 {% endfor %}
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
@@ -476,7 +533,7 @@
                          data-stage="{{ m.stage }}" 
                          data-group="{{ m.group or '' }}" 
                          data-status="{% if m.status == 'completed' %}Completed{% else %}Scheduled{% endif %}" 
-                         data-stage-full="{% if m.stage == 'quarter' %}Quarter-final{% elif m.stage == 'semi' %}Semi-final{% elif m.stage == 'final' %}Final{% else %}{% if m.group %}Group {{ m.group }} | {% endif %}Round {{ m.round }}{% endif %}">
+                         data-stage-full="{% if m.stage == 'round_of_32' or m.stage == 'round_of_16' %}Knockout{% elif m.stage == 'quarter' %}Quater finals{% elif m.stage == 'semi' %}semi{% elif m.stage == 'final' %}finals{% else %}Group{% if m.group %} {{ m.group }}{% endif %}{% if m.round %} | Round {{ m.round }}{% endif %}{% endif %}">
                          
                          <!-- Metadata Header Row -->
                          <div class="match-card-header">
